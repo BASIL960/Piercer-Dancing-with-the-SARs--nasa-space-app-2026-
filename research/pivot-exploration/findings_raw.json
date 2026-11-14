@@ -1,0 +1,185 @@
+{
+ "jouf_decades": [
+  {
+   "label": "March 1986",
+   "file": "weld_jouf_1986-03.png",
+   "green_km2": 0,
+   "pivots": 0
+  },
+  {
+   "label": "March 1991",
+   "file": "weld_jouf_1991-03.png",
+   "green_km2": 11,
+   "pivots": 15
+  },
+  {
+   "label": "March 2000",
+   "file": "weld_jouf_2000-03.png",
+   "green_km2": 378,
+   "pivots": 536
+  },
+  {
+   "label": "9 March 2026",
+   "file": "hls_jouf_2026-03-09.png",
+   "green_km2": 337,
+   "pivots": 472
+  }
+ ],
+ "qassim_decades": [
+  {
+   "label": "March 1985",
+   "file": "weld_qassim_1985-03.png",
+   "green_km2": 159,
+   "pivots": 185
+  },
+  {
+   "label": "March 2000",
+   "file": "weld_qassim_2000-03.png",
+   "green_km2": 182,
+   "pivots": 297
+  },
+  {
+   "label": "March 2001",
+   "file": "weld_qassim_2001-03.png",
+   "green_km2": 336,
+   "pivots": 561
+  },
+  {
+   "label": "8 March 2026",
+   "file": "hls_qassim_2026-03-08.png",
+   "green_km2": 118,
+   "pivots": 270
+  }
+ ],
+ "timeseries": {
+  "jouf": [
+   {
+    "date": "2026-06-22",
+    "veg_km2": 92,
+    "pivots": 23
+   },
+   {
+    "date": "2026-07-04",
+    "veg_km2": 70,
+    "pivots": 12
+   },
+   {
+    "date": "2026-07-16",
+    "veg_km2": 83,
+    "pivots": 10
+   },
+   {
+    "date": "2026-08-21",
+    "veg_km2": 58,
+    "pivots": 2
+   },
+   {
+    "date": "2026-09-02",
+    "veg_km2": 52,
+    "pivots": 3
+   },
+   {
+    "date": "2026-09-14",
+    "veg_km2": 60,
+    "pivots": 2
+   },
+   {
+    "date": "2026-09-26",
+    "veg_km2": 54,
+    "pivots": 6
+   },
+   {
+    "date": "2026-10-08",
+    "veg_km2": 42,
+    "pivots": 11
+   },
+   {
+    "date": "2026-10-20",
+    "veg_km2": 47,
+    "pivots": 5
+   },
+   {
+    "date": "2026-11-01",
+    "veg_km2": 47,
+    "pivots": 8
+   }
+  ],
+  "qassim": [
+   {
+    "date": "2026-06-25",
+    "veg_km2": 141,
+    "pivots": 13
+   },
+   {
+    "date": "2026-07-07",
+    "veg_km2": 147,
+    "pivots": 4
+   },
+   {
+    "date": "2026-07-19",
+    "veg_km2": 142,
+    "pivots": 3
+   },
+   {
+    "date": "2026-08-12",
+    "veg_km2": 118,
+    "pivots": 1
+   },
+   {
+    "date": "2026-08-24",
+    "veg_km2": 151,
+    "pivots": 2
+   },
+   {
+    "date": "2026-09-05",
+    "veg_km2": 110,
+    "pivots": 2
+   },
+   {
+    "date": "2026-09-17",
+    "veg_km2": 113,
+    "pivots": 1
+   },
+   {
+    "date": "2026-09-29",
+    "veg_km2": 111,
+    "pivots": 3
+   },
+   {
+    "date": "2026-10-11",
+    "veg_km2": 116,
+    "pivots": 3
+   },
+   {
+    "date": "2026-10-23",
+    "veg_km2": 129,
+    "pivots": 8
+   },
+   {
+    "date": "2026-11-04",
+    "veg_km2": 139,
+    "pivots": 13
+   }
+  ]
+ },
+ "jouf_change": {
+  "d0": "2026-06-22",
+  "d1": "2026-10-08",
+  "veg0": 92,
+  "veg1": 42,
+  "piv0": 23,
+  "piv1": 11,
+  "gain": 7,
+  "loss": 29
+ },
+ "qassim_change": {
+  "d0": "2026-09-29",
+  "d1": "2026-11-04",
+  "veg0": 111,
+  "veg1": 139,
+  "piv0": 3,
+  "piv1": 13,
+  "gain": 9,
+  "loss": 0
+ }
+}

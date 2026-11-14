@@ -1,0 +1,381 @@
+<title>Jazan Coast Build-out</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: full-bleed map; story panel on the right (stacks under the map on phones); timeline bar along the bottom.
+   One deliberate look: a dark desert-night map, so colours are set once (no light variant). */
+:root {
+  --ink: #f2efe9;
+  --ink-2: #bfb6a8;
+  --ink-3: #8c8476;
+  --ground: #121110;
+  --panel: #1a1816;
+  --rule: #34302b;
+  --accent: #ffcf7a;       /* the build front */
+  --built: #eb6834;        /* series 2: built / cleared ground */
+  --harbour: #3987e5;      /* series 1: water dug out of land */
+  --reclaim: #1baf7a;      /* series 3: land made from the sea */
+  --f-display: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-data: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--ground); color: var(--ink); font-family: var(--f-body); font-size: 15px; overflow: hidden; }
+.app { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 350px; grid-template-rows: minmax(0, 1fr) auto; }
+.map { position: relative; grid-row: 1; grid-column: 1; overflow: hidden; background: #0c0b0a; touch-action: none; cursor: grab; }
+.map.dragging { cursor: grabbing; }
+.map canvas, .map svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.map svg { pointer-events: none; }
+.side { grid-row: 1 / span 2; grid-column: 2; background: var(--panel); border-left: 1px solid var(--rule); display: flex; flex-direction: column; min-height: 0;
+  padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-left: 18px; padding-block: 18px 12px; gap: 16px; overflow-y: auto; }
+.bar { grid-row: 2; grid-column: 1; background: var(--panel); border-top: 1px solid var(--rule);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: 16px; padding-block: 10px 12px; display: grid; gap: 6px; }
+h1 { margin: 0; font-family: var(--f-display); font-weight: 700; font-size: 26px; line-height: 1.05; letter-spacing: 0.01em; text-wrap: balance; }
+.kicker { font-family: var(--f-display); font-weight: 600; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
+.lede { margin: 6px 0 0; color: var(--ink-2); font-size: 14px; line-height: 1.45; }
+.clock { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; padding-block: 12px; border-block: 1px solid var(--rule); }
+.clock .date { grid-column: 1 / -1; font-family: var(--f-display); font-weight: 600; font-size: 34px; line-height: 1; }
+.clock .date small { font-size: 15px; color: var(--ink-3); font-weight: 500; margin-left: 6px; }
+.stat .k { font-family: var(--f-display); font-size: 11.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); display: flex; align-items: center; gap: 6px; }
+.stat .k i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+.stat .v { font-family: var(--f-data); font-size: 19px; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.stat .v small { font-size: 12px; color: var(--ink-3); }
+.stat.hot .v { color: var(--accent); }
+.chart { width: 100%; height: 150px; display: block; }
+.chart text { font-family: var(--f-data); font-size: 9.5px; fill: var(--ink-3); }
+.events { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 13.5px; line-height: 1.35; }
+.events li { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 8px; padding: 6px 8px; border-radius: 4px; color: var(--ink-3); cursor: pointer; transition: color .3s, background .3s; }
+.events li .when { font-family: var(--f-data); font-size: 11.5px; padding-top: 1px; }
+.events li.past { color: var(--ink-2); }
+.events li.now { color: var(--ink); background: #2a251f; }
+.events li.now .when { color: var(--accent); }
+.events li .src { color: var(--ink-3); font-size: 11.5px; }
+.section-k { font-family: var(--f-display); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 6px; }
+.controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+button, select { font: inherit; color: var(--ink); background: #25221e; border: 1px solid var(--rule); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+button:hover, select:hover { border-color: #5a5248; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#play { width: 44px; height: 36px; padding: 0; display: grid; place-items: center; background: var(--accent); border-color: var(--accent); color: #2a1c05; }
+#play svg { width: 16px; height: 16px; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; background: transparent; color: var(--ink-2); padding: 6px 10px; font-family: var(--f-display); font-weight: 600; font-size: 13.5px; }
+.seg button[aria-pressed="true"] { background: #4a3a22; color: var(--ink); }
+.seg button + button { border-left: 1px solid var(--rule); }
+.spacer { flex: 1; }
+label.chk { display: inline-flex; gap: 6px; align-items: center; color: var(--ink-2); font-size: 13.5px; cursor: pointer; }
+.track { position: relative; height: 34px; }
+.track input[type=range] { position: absolute; inset: 12px 0 auto; width: 100%; margin: 0; appearance: none; background: transparent; height: 14px; }
+.track input[type=range]::-webkit-slider-runnable-track { height: 4px; background: #3d3830; border-radius: 2px; }
+.track input[type=range]::-moz-range-track { height: 4px; background: #3d3830; border-radius: 2px; }
+.track input[type=range]::-webkit-slider-thumb { appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); margin-top: -5px; border: 2px solid #2a1c05; }
+.track input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid #2a1c05; }
+.phase { position: absolute; top: 0; font-family: var(--f-display); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
+.tick { position: absolute; top: 9px; width: 2px; height: 10px; background: #6a6157; pointer-events: none; }
+.ticklabels { position: relative; height: 14px; font-family: var(--f-data); font-size: 10.5px; color: var(--ink-3); }
+.ticklabels span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.legend { display: grid; gap: 6px; font-size: 13px; color: var(--ink-2); }
+.legend .row { display: flex; align-items: center; gap: 8px; }
+.legend .sw { width: 26px; height: 10px; border-radius: 2px; flex: none; }
+.zoom { position: absolute; right: 12px; top: 12px; display: grid; gap: 4px; }
+.zoom button { width: 34px; height: 34px; padding: 0; font-size: 18px; background: rgba(26,24,22,.9); }
+.mapnote { position: absolute; left: 12px; bottom: 10px; font-size: 11.5px; color: var(--ink-2); background: rgba(18,17,16,.78); padding: 4px 8px; border-radius: 4px; max-width: calc(100% - 24px); }
+.loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ink-2); font-family: var(--f-display); letter-spacing: 0.08em; text-transform: uppercase; font-size: 13px; background: #0c0b0a; transition: opacity .5s; }
+.foot { font-size: 11.5px; color: var(--ink-3); line-height: 1.45; margin-top: auto; }
+@media (max-width: 860px) {
+  body { overflow: auto; }
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: 62vh auto auto; height: auto; }
+  .map { grid-row: 1; height: 62vh; }
+  .bar { grid-row: 2; grid-column: 1; padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .side { grid-row: 3; grid-column: 1; border-left: 0; border-top: 1px solid var(--rule); padding-left: max(16px, env(safe-area-inset-left, 0px)); overflow: visible; }
+  .phase { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .events li { transition: none; } }
+</style>
+
+<div class="app">
+  <div class="map" id="map">
+    <canvas id="gl"></canvas>
+    <svg id="ov" aria-hidden="true"></svg>
+    <div class="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button><button id="zfit" aria-label="Fit site to view">⤢</button></div>
+    <div class="mapnote" id="mapnote"></div>
+    <div class="loading" id="loading">Loading 40 years of satellite photos…</div>
+  </div>
+  <div class="bar">
+    <div class="controls">
+      <button id="play" aria-label="Play"><svg viewBox="0 0 16 16"><path id="playicon" d="M3 2l11 6-11 6z" fill="currentColor"/></svg></button>
+      <div class="seg" role="group" aria-label="Imagery">
+        <button id="m-opt" aria-pressed="true">Satellite photo</button>
+        <button id="m-rad" aria-pressed="false">Radar · NISAR 2026</button>
+      </div>
+      <label class="chk"><input type="checkbox" id="chg" checked> Highlight change</label>
+      <span class="spacer"></span>
+      <label class="chk">Speed <select id="speed"><option value="0.5">½×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></label>
+    </div>
+    <div class="track" id="track"><input type="range" id="time" min="0" max="1000" step="1" value="0" aria-label="Year"></div>
+    <div class="ticklabels" id="ticklabels"></div>
+  </div>
+  <aside class="side">
+    <div>
+      <div class="kicker">Jazan Province, Saudi Arabia · 1987 – 2026</div>
+      <h1>An empty coast becomes a port, a refinery and a city grid</h1>
+      <p class="lede">Forty years of Landsat photos of the same 27 km of Red Sea shore. Press play to see where building started, how it spread, and what NASA-ISRO's NISAR radar sees there today.</p>
+    </div>
+    <div class="clock">
+      <div class="date" id="date">—<small id="sub"></small></div>
+      <div class="stat hot"><div class="k">Ground transformed</div><div class="v" id="tot">0 <small>km²</small></div></div>
+      <div class="stat"><div class="k"><i style="background:var(--built)"></i>Built or cleared</div><div class="v" id="a-built">0 <small>km²</small></div></div>
+      <div class="stat"><div class="k"><i style="background:var(--harbour)"></i>Harbour dug</div><div class="v" id="a-harbour">0 <small>km²</small></div></div>
+      <div class="stat"><div class="k"><i style="background:var(--reclaim)"></i>Land from sea</div><div class="v" id="a-reclaimed">0 <small>km²</small></div></div>
+    </div>
+    <div>
+      <div class="section-k">Ground transformed since 1987, km²</div>
+      <svg class="chart" id="chart" viewBox="0 0 300 150" preserveAspectRatio="none"></svg>
+    </div>
+    <div>
+      <div class="section-k">What happened</div>
+      <ol class="events" id="events"></ol>
+    </div>
+    <div class="legend" aria-label="Legend">
+      <div class="section-k">Key</div>
+      <div class="row"><span class="sw" style="background:linear-gradient(90deg,#fff6df,#ffcf7a)"></span>Change appearing this year (the build front)</div>
+      <div class="row"><span class="sw" style="background:var(--built)"></span>Built or cleared ground: plants, tanks, roads, plots</div>
+      <div class="row"><span class="sw" style="background:var(--harbour)"></span>Harbour dug: water where there was land</div>
+      <div class="row"><span class="sw" style="background:var(--reclaim)"></span>Land from sea: breakwaters, quays, fill</div>
+    </div>
+    <p class="foot" id="foot">Photos: NASA/USGS Landsat 5, 7, 8 and 9 Collection 2 surface reflectance, a cloud-free median of up to four passes per year (Microsoft Planetary Computer). Change: each 30 m pixel is compared with its own 1987–2004 average; it counts once it differs and stays different in later years. The order within a year is interpolated, spreading out from what was already built. Radar: NASA-ISRO NISAR L2 GCOV, median of 20 passes Jun–Oct 2026, via NASA GIBS. Research build, 14 Nov 2026.</p>
+  </aside>
+</div>
+
+<script>
+(() => {
+"use strict";
+// time unit: decimal years. Photo of year Y is fully shown at t = Y; change first seen in photo Y is revealed during (Y-1, Y].
+const TSTART = 1987, TEND = 2026.95, RATE = 1.6;      // years per second at 1x
+const EVENTS = [
+  [1987.0, "Landsat 5's first clear view: a flat coastal plain of salt flats, dunes and small farms. No port, no industrial roads.", "Landsat"],
+  [2006.85, "Nov 2006 · Saudi Arabia announces Jazan Economic City, a $26.7 bn plan for a new industrial city on this shore.", "Financial Express"],
+  [0, "", "Landsat"],                                   // first earthworks: filled from the data
+  [2007.5, "Rectangular ponds, most likely a fish farm, are dug on the shore south of the future port. They are not part of the city.", "Landsat"],
+  [2014.3, "2014 · The port begins as sand fill pushed out into the sea, with the harbour basin dug behind it.", "Landsat"],
+  [2015.55, "Jul 2015 · The Royal Commission for Jubail and Yanbu takes charge of the city.", "Saudipedia"],
+  [2019.8, "Oct–Nov 2019 · First crude oil cargoes reach the refinery's terminal for commissioning.", "S&P Global Platts · MEES"],
+  [2020.73, "Sep 2020 · The first product cargo, 475,000 barrels of gasoil, sails for Singapore.", "Platts · Kpler"],
+  [2021.25, "2021 · The refinery starts up, heading for 400,000 barrels a day. The gasification power plant beside it is rated up to 3.8 GW. Total cost: about $21 bn.", "Aramco · MEES"],
+  [2026.5, "Jun–Oct 2026 · NISAR passes every 6 days. The refinery's steel tanks and process units are the brightest radar targets on this coast.", "NISAR"],
+];
+const TICKS = [1987, 1995, 2000, 2006, 2010, 2015, 2020, 2026];
+
+const $ = id => document.getElementById(id);
+const mapEl = $("map"), cv = $("gl"), ov = $("ov");
+const gl = cv.getContext("webgl", { antialias: false, premultipliedAlpha: false });
+if (!gl) { $("loading").textContent = "This map needs WebGL, which this browser has turned off."; return; }
+const MAXTEX = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+let D = null, t = TEND, playing = false, mode = "opt", speed = 1;
+const view = { s: 1, x: 0, y: 0 };
+const toS = v => (v - TSTART) / (TEND - TSTART), fromS = s => TSTART + s * (TEND - TSTART);
+
+const VS = `attribute vec2 p; attribute vec2 uv; uniform vec2 res; uniform vec3 vw; varying vec2 v;
+ void main(){ vec2 s=(p-vw.yz)*vw.x; gl_Position=vec4(s.x/res.x*2.0-1.0, 1.0-s.y/res.y*2.0, 0.0, 1.0); v=uv; }`;
+const FS_CTX = `precision mediump float; varying vec2 v; uniform sampler2D tex;
+ void main(){ vec3 c=texture2D(tex,v).rgb; float l=dot(c,vec3(.299,.587,.114)); c=mix(vec3(l),c,.7)*.92; gl_FragColor=vec4(c,1.0); }`;
+const FS_DET = `precision highp float; varying vec2 v;
+ uniform sampler2D ph0, ph1, arr, rad; uniform float t, mixv, isRad, showChg; uniform vec2 px;
+ float when(vec4 a){ float c=a.r*255.0*256.0+a.g*255.0; return c<0.5 ? 1e6 : 1979.0 + c/1000.0; }
+ void main(){
+   vec3 b = isRad>.5 ? texture2D(rad,v).rgb : mix(texture2D(ph0,v).rgb, texture2D(ph1,v).rgb, mixv);
+   float l=dot(b,vec3(.299,.587,.114));
+   vec3 col = (showChg>.5 && isRad<.5) ? mix(vec3(l),b,.7)*.92 : b;
+   vec4 A=texture2D(arr,v); float a=when(A);
+   if(showChg>.5 && t>=a){
+     float age=t-a; float ty=floor(A.b*255.0/80.0+.5);
+     vec3 tc = ty<1.5 ? vec3(.22,.53,.9) : ty<2.5 ? vec3(.11,.69,.48) : vec3(.92,.41,.2);
+     col = mix(col, tc, isRad>.5 ? .3 : .5);
+     if(age<0.18){ col=mix(col, vec3(1.0,.88,.56), (1.0-age/0.18)*.85); }
+     if(age<0.35){
+       float edge=0.0;
+       for(int i=0;i<4;i++){ vec2 o=i==0?vec2(px.x,0.):i==1?vec2(-px.x,0.):i==2?vec2(0.,px.y):vec2(0.,-px.y);
+         if(when(texture2D(arr,v+o*1.5))>t) edge=1.0; }
+       col=mix(col, vec3(1.0,.97,.88), edge*(1.0-age/0.35)*.8);
+     }
+   }
+   float e=min(min(v.x,1.0-v.x),min(v.y,1.0-v.y));
+   gl_FragColor=vec4(col, smoothstep(0.0,0.05,e));
+ }`;
+function prog(vs, fs) { const p = gl.createProgram(); for (const [ty, src] of [[gl.VERTEX_SHADER, vs], [gl.FRAGMENT_SHADER, fs]]) { const s = gl.createShader(ty); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); gl.attachShader(p, s); } gl.linkProgram(p); return p; }
+const P_CTX = prog(VS, FS_CTX), P_DET = prog(VS, FS_DET), buf = gl.createBuffer();
+const quad = (x, y, w, h) => new Float32Array([x, y, 0, 0, x + w, y, 1, 0, x, y + h, 0, 1, x + w, y + h, 1, 1]);
+function texFrom(img, nearest) {
+  let src = img;
+  if (Math.max(img.width, img.height) > MAXTEX) { const k = MAXTEX / Math.max(img.width, img.height), c = document.createElement("canvas"); c.width = Math.floor(img.width * k); c.height = Math.floor(img.height * k); c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); src = c; }
+  const tx = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tx);
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false); gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+  const f = nearest ? gl.NEAREST : gl.LINEAR;
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, f); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, f);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return tx;
+}
+const loadImg = src => new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error("Could not load " + src)); i.src = src; });
+const TX = { photos: {} };
+
+function resize() { const r = mapEl.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2); cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); ov.setAttribute("viewBox", `0 0 ${r.width} ${r.height}`); draw(); }
+function fit() { const r = mapEl.getBoundingClientRect(), d = D.detail; const s = Math.min(r.width / (d.w * 1.3), r.height / (d.h * 1.1)); view.s = s; view.x = d.x + d.w / 2 - r.width / 2 / s; view.y = d.y + d.h / 2 - r.height / 2 / s; }
+function photoPair() {
+  const ys = D.years, f = Math.floor(t);
+  const y1 = Math.max(ys[0], Math.min(ys[ys.length - 1], f)), y2 = Math.min(ys[ys.length - 1], y1 + 1);
+  const k = y2 === y1 ? 0 : Math.max(0, Math.min(1, t - y1));
+  // ease the cross-fade so each year's photo holds for a moment
+  const e = k < 0.55 ? 0 : (k - 0.55) / 0.45;
+  return [TX.photos[y1] || TX.photos[ys[ys.length - 1]], TX.photos[y2] || TX.photos[y1], e * e * (3 - 2 * e), e > 0.5 ? y2 : y1];
+}
+function setMode(m) {
+  mode = m; $("m-opt").setAttribute("aria-pressed", String(m === "opt")); $("m-rad").setAttribute("aria-pressed", String(m === "rad"));
+  if (m === "rad" && t < 2026) { t = TEND; pause(); updatePanel(); }
+  updateNote(); draw();
+}
+function updateNote() {
+  if (mode === "opt") { const [, , , y] = photoPair(); $("mapnote").textContent = `Landsat photo, ${y} · surroundings: Landsat 2025–26 · drag to pan, scroll to zoom`; return; }
+  $("mapnote").textContent = "NISAR L-band radar, Jun–Oct 2026 · bright yellow-green = metal and buildings that bounce the radar back · dark = smooth sand and water";
+}
+function draw() {
+  if (!D || !TX.ctx || !TX.arr) return;
+  const dpr = cv.width / mapEl.clientWidth;
+  gl.viewport(0, 0, cv.width, cv.height); gl.clearColor(0.047, 0.043, 0.04, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+  const vw = [view.s * dpr, view.x, view.y];
+  const use = (p, data) => { gl.useProgram(p); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+    const lp = gl.getAttribLocation(p, "p"), lu = gl.getAttribLocation(p, "uv"); gl.enableVertexAttribArray(lp); gl.vertexAttribPointer(lp, 2, gl.FLOAT, false, 16, 0); gl.enableVertexAttribArray(lu); gl.vertexAttribPointer(lu, 2, gl.FLOAT, false, 16, 8);
+    gl.uniform2f(gl.getUniformLocation(p, "res"), cv.width, cv.height); gl.uniform3f(gl.getUniformLocation(p, "vw"), ...vw); };
+  use(P_CTX, quad(0, 0, D.context.W, D.context.H)); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, TX.ctx); gl.uniform1i(gl.getUniformLocation(P_CTX, "tex"), 0); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  const d = D.detail; use(P_DET, quad(d.x, d.y, d.w, d.h));
+  const U = n => gl.getUniformLocation(P_DET, n);
+  const [p0, p1, mx] = photoPair();
+  if (!p0) return;
+  [[p0, "ph0"], [p1, "ph1"], [TX.arr, "arr"], [TX.rad || p0, "rad"]].forEach(([tx, n], k) => { gl.activeTexture(gl.TEXTURE0 + k); gl.bindTexture(gl.TEXTURE_2D, tx); gl.uniform1i(U(n), k); });
+  gl.uniform1f(U("t"), t); gl.uniform1f(U("mixv"), mx);
+  gl.uniform1f(U("isRad"), mode === "rad" && TX.rad ? 1 : 0); gl.uniform1f(U("showChg"), $("chg").checked ? 1 : 0); gl.uniform2f(U("px"), 1 / d.W, 1 / d.H);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  drawOverlay();
+}
+function drawOverlay() {
+  const S = p => [((p[0] - view.x) * view.s).toFixed(1), ((p[1] - view.y) * view.s).toFixed(1)];
+  let h = "";
+  for (const r of D.regions) { const [x, y] = S(r.p); h += `<text x="${x}" y="${y}" fill="#e8e1d5" fill-opacity=".6" font-family="Barlow Semi Condensed, sans-serif" font-weight="600" font-size="13" letter-spacing="3" text-anchor="middle">${r.name}</text>`; }
+  for (const pl of D.places) {
+    const [x, y] = S(pl.p);
+    if (pl.kind === "site") {
+      if (t >= 2018) h += `<g transform="translate(${x},${y})"><circle r="4" fill="none" stroke="#ffcf7a" stroke-width="1.6"/><text x="0" y="-10" text-anchor="middle" fill="#f2efe9" font-family="Barlow, sans-serif" font-size="12.5" paint-order="stroke" stroke="#121110" stroke-width="3">${t >= 2020.7 ? "Refinery & port" : "Refinery (building)"}</text></g>`;
+    } else h += `<g transform="translate(${x},${y})"><circle r="3.2" fill="#f2efe9" stroke="#121110" stroke-width="1.2"/><text x="7" y="4" fill="#f2efe9" font-family="Barlow, sans-serif" font-size="12.5" paint-order="stroke" stroke="#121110" stroke-width="3">${pl.name}</text></g>`;
+  }
+  const px5 = 5000 / D.context.res * view.s, r = mapEl.getBoundingClientRect();
+  h += `<g transform="translate(14,${r.height - 44})"><rect width="${px5}" height="5" fill="#f2efe9"/><rect width="${px5 / 2}" height="5" fill="#121110" stroke="#f2efe9"/><text y="-5" fill="#f2efe9" font-family="IBM Plex Mono, monospace" font-size="11">5 km</text></g>`;
+  ov.innerHTML = h;
+}
+const KEYS = ["built", "harbour", "reclaimed"];
+function areaAt(key, tt) {
+  // cumulative area at time tt: the change first seen in photo Y fills in during (Y-1, Y]
+  const ys = D.years, a = D.area[key];
+  if (tt <= ys[0]) return a[0];
+  for (let i = 1; i < ys.length; i++) if (tt <= ys[i]) { const s0 = Math.max(ys[i - 1], ys[i] - 1), k = Math.max(0, Math.min(1, (tt - s0) / (ys[i] - s0))); return a[i - 1] + (a[i] - a[i - 1]) * k; }
+  return a[a.length - 1];
+}
+function updatePanel() {
+  const yr = Math.min(2026, Math.floor(t));
+  $("date").firstChild.nodeValue = String(yr);
+  $("sub").textContent = t < 2006.85 ? " · before the plan" : t < 2021.25 ? " · under construction" : " · operating";
+  let tot = 0;
+  for (const k of KEYS) { const v = areaAt(k, t); tot += v; $("a-" + k).innerHTML = `${v.toFixed(1)} <small>km²</small>`; }
+  $("tot").innerHTML = `${tot.toFixed(1)} <small>km²</small>`;
+  let cur = -1; EVENTS.forEach((e, k) => { if (t >= e[0]) cur = k; });
+  [...$("events").children].forEach((li, k) => li.className = k === cur ? "now" : k < cur ? "past" : "");
+  $("time").value = Math.round(toS(t) * 1000);
+  drawChartCursor(); updateNote();
+}
+function buildEvents() {
+  $("events").innerHTML = EVENTS.map(e => `<li><span class="when">${Math.floor(e[0])}</span><span>${e[1]} <span class="src">· ${e[2]}</span></span></li>`).join("");
+  [...$("events").children].forEach((li, k) => li.addEventListener("click", () => { t = Math.min(TEND, EVENTS[k][0] + 0.02); pause(); updatePanel(); draw(); }));
+}
+let CX, CY, CHmax;
+function buildChart() {
+  const ys = D.years, n = ys.length, Wd = 300, Hd = 150, top = 22, bot = 18, left = 26;
+  const tot = ys.map((_, i) => KEYS.reduce((s, k) => s + D.area[k][i], 0));
+  CHmax = Math.ceil(Math.max(...tot) / 10) * 10 || 10;
+  CX = y => left + (Wd - left - 6) * (y - TSTART) / (TEND - TSTART); CY = v => top + (Hd - top - bot) * (1 - v / CHmax);
+  const colour = { built: "#eb6834", harbour: "#3987e5", reclaimed: "#1baf7a" };
+  let h = "";
+  for (let v = 0; v <= CHmax; v += CHmax / 2) h += `<line x1="${left}" x2="${Wd - 4}" y1="${CY(v)}" y2="${CY(v)}" stroke="#2a2621"/><text x="${left - 4}" y="${CY(v) + 3}" text-anchor="end">${v}</text>`;
+  // stacked areas (built at the bottom), 1px surface gap between bands
+  let lower = ys.map(() => 0);
+  for (const k of KEYS) {
+    const upper = lower.map((l, i) => l + D.area[k][i]);
+    let d = ys.map((y, i) => `${i ? "L" : "M"}${CX(y).toFixed(1)},${CY(upper[i]).toFixed(1)}`).join(" ");
+    d += " " + ys.slice().reverse().map((y, j) => `L${CX(y).toFixed(1)},${CY(lower[n - 1 - j]).toFixed(1)}`).join(" ") + "Z";
+    h += `<path d="${d}" fill="${colour[k]}" fill-opacity=".85" stroke="#1a1816" stroke-width="1"/>`;
+    lower = upper;
+  }
+  h += `<line id="ccur" y1="${top - 4}" y2="${Hd - bot}" stroke="#ffcf7a" stroke-width="1.5"/><text id="cval" y="${top - 8}" fill="#f2efe9" text-anchor="middle"></text>`;
+  h += [1990, 2000, 2010, 2020].map(y => `<text x="${CX(y)}" y="${Hd - 5}" text-anchor="middle">${y}</text>`).join("");
+  h += `<g transform="translate(${left},10)"><rect width="9" height="9" y="-8" rx="2" fill="#eb6834"/><text x="12" y="0">built</text><rect x="48" width="9" height="9" y="-8" rx="2" fill="#3987e5"/><text x="60" y="0">harbour</text><rect x="112" width="9" height="9" y="-8" rx="2" fill="#1baf7a"/><text x="124" y="0">from sea</text></g>`;
+  $("chart").innerHTML = h;
+  const el = $("chart");
+  el.addEventListener("pointermove", e => { const r = el.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * Wd; const y = TSTART + (x - left) / (Wd - left - 6) * (TEND - TSTART); hoverYear = Math.max(TSTART, Math.min(2026, Math.round(y))); drawChartCursor(); });
+  el.addEventListener("pointerleave", () => { hoverYear = null; drawChartCursor(); });
+}
+let hoverYear = null;
+function drawChartCursor() {
+  const c = $("ccur"), tv = $("cval"); if (!c) return;
+  const at = hoverYear ?? t, x = CX(Math.min(at, TEND));
+  c.setAttribute("x1", x); c.setAttribute("x2", x);
+  const parts = KEYS.map(k => areaAt(k, at)), tot = parts.reduce((a, b) => a + b, 0);
+  tv.setAttribute("x", Math.max(70, Math.min(230, x)));
+  tv.textContent = hoverYear !== null ? `${hoverYear}: ${tot.toFixed(1)} km² (built ${parts[0].toFixed(1)}, harbour ${parts[1].toFixed(1)}, sea ${parts[2].toFixed(1)})` : "";
+}
+function buildTicks() {
+  $("ticklabels").innerHTML = TICKS.map(y => `<span style="left:${(toS(y) * 100).toFixed(2)}%">${y}</span>`).join("");
+  const tr = $("track");
+  EVENTS.forEach(e => { const d = document.createElement("div"); d.className = "tick"; d.style.left = `calc(${(toS(e[0]) * 100).toFixed(2)}% - 1px)`; tr.appendChild(d); });
+  for (const [y, txt] of [[1987, "Empty coast"], [2006.85, "Plan"], [D.first, "Construction"], [2021.25, "Operating"]]) { const d = document.createElement("div"); d.className = "phase"; d.style.left = `${toS(y) * 100}%`; d.textContent = txt; tr.appendChild(d); }
+}
+let last = 0;
+function frame(now) { if (!playing) return; const dt = Math.min(0.1, (now - last) / 1000); last = now; t += RATE * speed * dt; if (t >= TEND) { t = TEND; pause(); } updatePanel(); draw(); if (playing) requestAnimationFrame(frame); }
+function play() { if (t >= TEND - 0.01) t = TSTART; if (mode === "rad") setMode("opt"); playing = true; $("playicon").setAttribute("d", "M3 2h3.5v12H3zM9.5 2H13v12H9.5z"); $("play").setAttribute("aria-label", "Pause"); last = performance.now(); requestAnimationFrame(frame); }
+function pause() { playing = false; $("playicon").setAttribute("d", "M3 2l11 6-11 6z"); $("play").setAttribute("aria-label", "Play"); }
+$("play").addEventListener("click", () => playing ? pause() : play());
+$("time").addEventListener("input", e => { pause(); t = fromS(e.target.value / 1000); if (mode === "rad" && t < 2026) setMode("opt"); updatePanel(); draw(); });
+$("speed").addEventListener("change", e => speed = +e.target.value);
+$("chg").addEventListener("change", draw);
+$("m-opt").addEventListener("click", () => setMode("opt")); $("m-rad").addEventListener("click", () => setMode("rad"));
+function zoomAt(k, cx, cy) { const r = mapEl.getBoundingClientRect(); cx ??= r.width / 2; cy ??= r.height / 2; const wx = view.x + cx / view.s, wy = view.y + cy / view.s; view.s = Math.max(0.2, Math.min(40, view.s * k)); view.x = wx - cx / view.s; view.y = wy - cy / view.s; draw(); }
+$("zin").addEventListener("click", () => zoomAt(1.4)); $("zout").addEventListener("click", () => zoomAt(1 / 1.4)); $("zfit").addEventListener("click", () => { fit(); draw(); });
+mapEl.addEventListener("wheel", e => { e.preventDefault(); const r = mapEl.getBoundingClientRect(); zoomAt(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+const ptrs = new Map(); let pinch = 0;
+mapEl.addEventListener("pointerdown", e => { if (e.target.closest("button")) return; mapEl.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]); mapEl.classList.add("dragging"); });
+mapEl.addEventListener("pointermove", e => { if (!ptrs.has(e.pointerId)) return; const [px, py] = ptrs.get(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), r = mapEl.getBoundingClientRect(); if (pinch) zoomAt(d / pinch, (a[0] + b[0]) / 2 - r.left, (a[1] + b[1]) / 2 - r.top); pinch = d; return; }
+  view.x -= (e.clientX - px) / view.s; view.y -= (e.clientY - py) / view.s; draw(); });
+const up = e => { ptrs.delete(e.pointerId); pinch = 0; if (!ptrs.size) mapEl.classList.remove("dragging"); };
+mapEl.addEventListener("pointerup", up); mapEl.addEventListener("pointercancel", up);
+document.addEventListener("keydown", e => { if (e.code === "Space" && e.target === document.body) { e.preventDefault(); playing ? pause() : play(); } });
+new ResizeObserver(resize).observe(mapEl);
+(async () => {
+  try {
+    D = await (await fetch("data.json")).json();
+    EVENTS[2][0] = D.first - 0.5; EVENTS[2][1] = D.first_text;
+    EVENTS.sort((a, b) => a[0] - b[0]);
+    buildEvents(); buildChart(); buildTicks();
+    const [ctx, arr] = await Promise.all([loadImg("context.jpg").then(i => texFrom(i)), loadImg("arrival.png").then(i => texFrom(i, true))]);
+    Object.assign(TX, { ctx, arr });
+    // the latest photo first so the map appears quickly, then the rest of the years
+    const ys = D.years;
+    TX.photos[ys[ys.length - 1]] = texFrom(await loadImg(`y${ys[ys.length - 1]}.jpg`));
+    resize(); fit(); updatePanel(); draw();
+    $("loading").style.opacity = 0; setTimeout(() => $("loading").hidden = true, 500);
+    await Promise.all(ys.slice(0, -1).map(y => loadImg(`y${y}.jpg`).then(i => { TX.photos[y] = texFrom(i); })));
+    TX.rad = texFrom(await loadImg("radar_2026.jpg"));
+    draw();
+  } catch (err) { $("loading").textContent = "Could not load the map data: " + err.message; }
+})();
+})();
+</script>
