@@ -1,0 +1,650 @@
+<meta charset="utf-8">
+<title>Jazan Rain Radar</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: full-bleed map; story panel on the right (stacks under the map on phones); timeline bar along the bottom.
+   One deliberate look: a dark storm-night map, so colours are set once (no light variant). */
+:root {
+  --ink: #eef1f4;
+  --ink-2: #b3bcc6;
+  --ink-3: #828c97;
+  --ground: #0f1215;
+  --panel: #161a1f;
+  --rule: #2b323a;
+  --accent: #8fd3ff;
+  --dusk: #eb6834;         /* series: dusk pass (track 64) */
+  --dawn: #3987e5;         /* series: dawn pass (track 71) */
+  --rain: #f0c8ff;         /* rain falling (IMERG) */
+  --wet: #2a9fd8;          /* ground the radar sees as wet */
+  --water: #3046d8;        /* open water in photos */
+  --green: #3fcf78;        /* newly green since June */
+  --green-old: #22593f;    /* already green in June */
+  --dried: #b5803a;        /* green earlier, dried or harvested */
+  --alert: #e5484d;
+  --f-display: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-data: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--ground); color: var(--ink); font-family: var(--f-body); font-size: 15px; overflow: hidden; }
+.app { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 380px; grid-template-rows: minmax(0, 1fr) auto; }
+.map { position: relative; grid-row: 1; grid-column: 1; overflow: hidden; background: #0a0c0e; touch-action: none; cursor: grab; }
+.map.dragging { cursor: grabbing; }
+.map canvas, .map svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.map svg { pointer-events: none; }
+.side { grid-row: 1 / span 2; grid-column: 2; background: var(--panel); border-left: 1px solid var(--rule); display: flex; flex-direction: column; min-height: 0;
+  padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-left: 18px; padding-block: 18px 12px; gap: 16px; overflow-y: auto; }
+.bar { grid-row: 2; grid-column: 1; background: var(--panel); border-top: 1px solid var(--rule);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: 16px; padding-block: 10px 12px; display: grid; gap: 6px; }
+h1 { margin: 0; font-family: var(--f-display); font-weight: 700; font-size: 26px; line-height: 1.05; letter-spacing: 0.01em; text-wrap: balance; }
+.kicker { font-family: var(--f-display); font-weight: 600; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
+.lede { margin: 6px 0 0; color: var(--ink-2); font-size: 14px; line-height: 1.45; }
+.clock { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; padding-block: 12px; border-block: 1px solid var(--rule); }
+.clock .date { grid-column: 1 / -1; font-family: var(--f-display); font-weight: 600; font-size: 30px; line-height: 1; }
+.clock .date small { font-size: 14px; color: var(--ink-3); font-weight: 500; margin-left: 6px; }
+.stat .k { font-family: var(--f-display); font-size: 11.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); display: flex; align-items: center; gap: 6px; }
+.stat .k i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; flex: none; }
+.stat .v { font-family: var(--f-data); font-size: 18px; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.stat .v small { font-size: 11.5px; color: var(--ink-3); }
+.chart { width: 100%; height: 118px; display: block; }
+.chart text { font-family: var(--f-data); font-size: 9.5px; fill: var(--ink-3); }
+.finding { background: #1c2229; border: 1px solid var(--rule); border-radius: 6px; padding: 10px 12px; font-size: 13.5px; line-height: 1.45; color: var(--ink-2); }
+.finding b { color: var(--ink); font-weight: 500; }
+.finding table { width: 100%; border-collapse: collapse; margin-top: 8px; font-family: var(--f-data); font-size: 11.5px; }
+.finding td, .finding th { padding: 2px 4px; text-align: right; border-bottom: 1px solid #262d35; font-weight: 400; }
+.finding th { color: var(--ink-3); }
+.finding td:first-child, .finding th:first-child { text-align: left; }
+.events { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 13.5px; line-height: 1.35; }
+.events li { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 8px; padding: 6px 8px; border-radius: 4px; color: var(--ink-3); cursor: pointer; transition: color .3s, background .3s; }
+.events li .when { font-family: var(--f-data); font-size: 11.5px; padding-top: 1px; }
+.events li.past { color: var(--ink-2); }
+.events li.now { color: var(--ink); background: #1f2730; }
+.events li.now .when { color: var(--accent); }
+.events li .src { color: var(--ink-3); font-size: 11.5px; }
+.events li a { color: inherit; }
+.chip { display: inline-block; font-family: var(--f-display); font-weight: 600; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; padding: 1px 5px; border-radius: 3px; margin-right: 4px; vertical-align: 1px; border: 1px solid currentColor; }
+.chip.alert { color: #ff8a8d; }
+.chip.warn { color: #f2c46d; }
+.chip.data { color: var(--accent); }
+.chip.report { color: var(--ink-2); }
+.section-k { font-family: var(--f-display); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 6px; }
+.controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+button, select { font: inherit; color: var(--ink); background: #20262d; border: 1px solid var(--rule); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+button:hover, select:hover { border-color: #4b5763; }
+button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#play { width: 44px; height: 36px; padding: 0; display: grid; place-items: center; background: var(--accent); border-color: var(--accent); color: #062033; }
+#play svg { width: 16px; height: 16px; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; background: transparent; color: var(--ink-2); padding: 6px 10px; font-family: var(--f-display); font-weight: 600; font-size: 13.5px; }
+.seg button[aria-pressed="true"] { background: #24394a; color: var(--ink); }
+.seg button + button { border-left: 1px solid var(--rule); }
+.spacer { flex: 1; }
+label.chk { display: inline-flex; gap: 6px; align-items: center; color: var(--ink-2); font-size: 13.5px; cursor: pointer; }
+.track { position: relative; height: 40px; }
+.track input[type=range] { position: absolute; inset: 18px 0 auto; width: 100%; margin: 0; appearance: none; background: transparent; height: 14px; }
+.track input[type=range]::-webkit-slider-runnable-track { height: 4px; background: #333c45; border-radius: 2px; }
+.track input[type=range]::-moz-range-track { height: 4px; background: #333c45; border-radius: 2px; }
+.track input[type=range]::-webkit-slider-thumb { appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); margin-top: -5px; border: 2px solid #062033; }
+.track input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid #062033; }
+.tick { position: absolute; width: 2px; pointer-events: none; }
+.raintick { position: absolute; bottom: 22px; width: 3px; background: var(--rain); opacity: .85; pointer-events: none; border-radius: 1px 1px 0 0; }
+.flag { position: absolute; top: 0; width: 9px; height: 9px; margin-left: -4.5px; transform: rotate(45deg); border-radius: 1px; cursor: pointer; padding: 0; border: 1px solid #0f1215; }
+.flag.alert { background: var(--alert); } .flag.warn { background: #f2c46d; } .flag.data { background: var(--accent); } .flag.report { background: var(--ink-2); }
+.phase { position: absolute; top: 0; font-family: var(--f-display); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; pointer-events: none; }
+.ticklabels { position: relative; height: 14px; font-family: var(--f-data); font-size: 10.5px; color: var(--ink-3); }
+.ticklabels span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.legend { display: grid; gap: 7px; font-size: 13px; color: var(--ink-2); line-height: 1.35; }
+.legend .row { display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: start; gap: 9px; }
+.legend .sw { width: 34px; height: 12px; border-radius: 2px; margin-top: 2px; }
+.legend b { color: var(--ink); font-weight: 500; }
+.zoom { position: absolute; right: 12px; top: 12px; display: grid; gap: 4px; }
+.zoom button { width: 34px; height: 34px; padding: 0; font-size: 18px; background: rgba(22,26,31,.9); }
+.maptitle { position: absolute; left: 12px; top: 12px; font-family: var(--f-display); font-weight: 600; font-size: 15px; background: rgba(15,18,21,.82); padding: 6px 10px; border-radius: 4px; max-width: calc(100% - 80px); }
+.maptitle small { display: block; font-family: var(--f-body); font-weight: 400; font-size: 12px; color: var(--ink-2); }
+.callout { position: absolute; max-width: min(330px, calc(100% - 24px)); background: rgba(18,22,27,.94); border: 1px solid #3a434d; border-left: 3px solid var(--ink-2); border-radius: 5px; padding: 8px 10px; font-size: 13px; line-height: 1.4; color: var(--ink-2); pointer-events: auto; transition: opacity .35s; }
+.callout.alert { border-left-color: var(--alert); } .callout.warn { border-left-color: #f2c46d; } .callout.data { border-left-color: var(--accent); }
+.callout .t { color: var(--ink); font-weight: 500; }
+.callout .d { margin-top: 5px; padding-top: 5px; border-top: 1px solid #2b323a; font-size: 12px; color: var(--ink-2); }
+.callout a { color: var(--ink-2); }
+.loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ink-2); font-family: var(--f-display); letter-spacing: 0.08em; text-transform: uppercase; font-size: 13px; background: #0a0c0e; transition: opacity .5s; }
+.foot { font-size: 11.5px; color: var(--ink-3); line-height: 1.45; margin-top: auto; }
+.foot a { color: var(--ink-2); }
+@media (max-width: 860px) {
+  body { overflow: auto; }
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: 62vh auto auto; height: auto; }
+  .map { grid-row: 1; height: 62vh; }
+  .bar { grid-row: 2; grid-column: 1; padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .side { grid-row: 3; grid-column: 1; border-left: 0; border-top: 1px solid var(--rule); padding-left: max(16px, env(safe-area-inset-left, 0px)); overflow: visible; }
+  .phase { display: none; }
+  .callout { font-size: 12px; }
+}
+@media (prefers-reduced-motion: reduce) { .events li, .callout { transition: none; } }
+</style>
+
+<div class="app">
+  <div class="map" id="map">
+    <canvas id="gl"></canvas>
+    <svg id="ov" aria-hidden="true"></svg>
+    <div class="maptitle" id="maptitle"></div>
+    <div class="callout" id="callout" hidden></div>
+    <div class="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button><button id="zfit" aria-label="Fit study area to view">⤢</button></div>
+    <div class="loading" id="loading">Loading radar and satellite images…</div>
+  </div>
+  <div class="bar">
+    <div class="controls">
+      <button id="play" aria-label="Play"><svg viewBox="0 0 16 16"><path id="playicon" d="M3 2l11 6-11 6z" fill="currentColor"/></svg></button>
+      <div class="seg" role="group" aria-label="Map layer">
+        <button id="m-sea" aria-pressed="true">Season</button>
+        <button id="m-coh" aria-pressed="false">Radar · ground change</button>
+        <button id="m-bsc" aria-pressed="false">Radar · wetness</button>
+        <button id="m-opt" aria-pressed="false">Satellite photo</button>
+      </div>
+      <div class="seg" role="group" aria-label="Radar pass">
+        <button id="p-dusk" aria-pressed="true">Dusk pass</button>
+        <button id="p-dawn" aria-pressed="false">Dawn pass</button>
+      </div>
+      <label class="chk"><input type="checkbox" id="rainchk" checked> Rain</label>
+      <label class="chk"><input type="checkbox" id="slowchk" checked> Slow down for alerts</label>
+      <span class="spacer"></span>
+      <label class="chk">Speed <select id="speed"><option value="0.5">½×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label>
+    </div>
+    <div class="track" id="track"><input type="range" id="time" min="0" max="1000" step="1" value="0" aria-label="Date"></div>
+    <div class="ticklabels" id="ticklabels"></div>
+  </div>
+  <aside class="side">
+    <div>
+      <div class="kicker">Jazan, Saudi Arabia · June – November 2026</div>
+      <h1>Jazan's rainy season: storms, wet ground and a green wave</h1>
+      <p class="lede">Afternoon storms build over the mountains and spill onto the Jazan coastal plain. NASA-ISRO's NISAR radar sees the ground soak through cloud and darkness, at 18:39 and at 05:39. NASA's Landsat and Sentinel-2 photos show what grows after. Press play: the low coastal land greens last, in mid-October, about a month after the land above 100 m.</p>
+    </div>
+    <div class="legend" id="legend" aria-label="How to read the map"></div>
+    <div class="clock">
+      <div class="date" id="date">—<small id="sub"></small></div>
+      <div class="stat"><div class="k"><i style="background:var(--rain)"></i>Rain that day</div><div class="v" id="v-rain">—</div></div>
+      <div class="stat"><div class="k"><i style="background:var(--wet)"></i>Wet ground · radar</div><div class="v" id="v-wet">—</div></div>
+      <div class="stat"><div class="k"><i style="background:var(--green)"></i>New green · plain</div><div class="v" id="v-green">—</div></div>
+      <div class="stat"><div class="k"><i style="background:var(--water)"></i>Open water</div><div class="v" id="v-water">—</div></div>
+      <div class="stat"><div class="k"><i style="background:var(--dusk)"></i>Changed · dusk</div><div class="v" id="v-dusk">—</div></div>
+      <div class="stat"><div class="k"><i style="background:var(--dawn)"></i>Changed · dawn</div><div class="v" id="v-dawn">—</div></div>
+    </div>
+    <div>
+      <div class="section-k">Rain over the study area (NASA IMERG, mm per day)</div>
+      <svg class="chart" id="c-rain" viewBox="0 0 320 118" preserveAspectRatio="none"></svg>
+    </div>
+    <div>
+      <div class="section-k">Coastal plain where radar saw the ground change, %</div>
+      <svg class="chart" id="c-coh" viewBox="0 0 320 118" preserveAspectRatio="none"></svg>
+    </div>
+    <div>
+      <div class="section-k">Coastal plain newly green since June (NASA HLS), km²</div>
+      <svg class="chart" id="c-green" viewBox="0 0 320 118" preserveAspectRatio="none"></svg>
+    </div>
+    <div class="finding" id="finding2"></div>
+    <div class="finding" id="finding"></div>
+    <div>
+      <div class="section-k">What happened · alerts and reports</div>
+      <ol class="events" id="events"></ol>
+    </div>
+    <p class="foot" id="foot"></p>
+  </aside>
+</div>
+
+<script>
+(() => {
+"use strict";
+// time unit: days after 1 Jun 2026 00:00, Saudi time (UTC+3)
+const D0 = Date.UTC(2026, 5, 1) - 3 * 3600e3;
+const day = (s, hh = 0, mm = 0) => (Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10), hh, mm) - 3 * 3600e3 - D0) / 864e5;
+const TSTART = 0, TEND = day("2026-11-14"), RATE = 5.5;         // days per second at 1x
+const PASS_TIME = { dusk: [18, 39], dawn: [5, 39] };
+const PHOTO_H = 10.5 / 24;                                      // HLS overpass, about 10:30 Saudi time
+const XFADE = 1.0;                                              // days: blend into a new radar frame or photo after it is taken
+// [date, hour, kind, short label, text, source, url]
+const EVENTS = [
+  ["2026-08-12", 12, "data", "Rain", "WETTEST_DAY", "NASA IMERG", null],
+  ["2026-08-16", 12, "warn", "Warning", "Weather warning: moderate to heavy rain over several Jazan governorates.", "NCM via Dalil Saudi", "https://dalylsaudi.com/news457005.html"],
+  ["2026-08-22", 12, "alert", "Red alert", "Red alert for Jazan. Civil Defense tells people to keep out of wadi beds and flood channels.", "Dalil Saudi", "https://dalylsaudi.com/news456975.html"],
+  ["2026-08-26", 12, "alert", "Red alert", "Red alert until 21:00: heavy rain, hail and torrents in the mountain governorates, moderate rain on the coast.", "NCM via Dalil Saudi", "https://dalylsaudi.com/news456975.html"],
+  ["2026-08-30", 12, "alert", "Red alert", "Another red alert for the mountain governorates.", "NCM via Dalil Saudi", "https://dalylsaudi.com/news457005.html"],
+  ["2026-09-22", 12, "data", "Rain", "WETTEST_PASS", "NASA IMERG · NISAR", null],
+  ["2026-10-06", 12, "data", "Rain", "OCT_DAY", "NASA IMERG", null],
+  ["2026-10-13", 12, "warn", "Warning", "Thunderstorms with hail over wide parts of Jazan until 22:00; torrents possible in the wadis.", "NCM via Nl7za", "https://nl7za.com/saudi/saudi-weather-tuesday-midday-jazan-floods-hail-till-10pm-dammam-42-2026-10-13"],
+  ["2026-10-24", 16, "report", "Report", "WADI_BID", "X post", "https://x.com/rashud2/status/2114118615004016895"],
+  ["2026-11-05", 12, "warn", "Warning", "Civil Defense warns of thunderstorms and flash floods across most regions as a nationwide storm system arrives.", "Arab News", "https://www.arabnews.com/saudi-arabia/saudi-arabia-braces-for-thunderstorms-flash-floods-across-most-regions-through-tuesday-3010103"],
+].map(([d, h, kind, label, txt, src, url]) => ({ t: day(d) + h / 24, d0: day(d), d, kind, label, txt, src, url }));
+
+const $ = id => document.getElementById(id);
+const mapEl = $("map"), cv = $("gl"), ov = $("ov");
+const gl = cv.getContext("webgl", { antialias: false, premultipliedAlpha: false });
+if (!gl) { $("loading").textContent = "This map needs WebGL, which this browser has turned off."; return; }
+const MAXTEX = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let D = null, t = day("2026-09-17", 12), playing = false, started = false, mode = "sea", pass = "dusk", speed = 1;
+const view = { s: 1, x: 0, y: 0 };
+const toS = v => (v - TSTART) / (TEND - TSTART), fromS = s => TSTART + s * (TEND - TSTART);
+
+const VS = `attribute vec2 p; attribute vec2 uv; uniform vec2 res; uniform vec3 vw; varying vec2 v;
+ void main(){ vec2 s=(p-vw.yz)*vw.x; gl_Position=vec4(s.x/res.x*2.0-1.0, 1.0-s.y/res.y*2.0, 0.0, 1.0); v=uv; }`;
+const FS_CTX = `precision mediump float; varying vec2 v; uniform sampler2D tex; uniform float dim;
+ void main(){ vec3 c=texture2D(tex,v).rgb; float l=dot(c,vec3(.299,.587,.114)); c=mix(vec3(l),c,mix(.75,.2,dim))*mix(.92,.5,dim); gl_FragColor=vec4(c,1.0); }`;
+// mode 0 coherence change, 1 backscatter change, 2 photo, 3 season (rain is drawn separately)
+const FS_DET = `precision highp float; varying vec2 v;
+ uniform sampler2D base, f0, f1, p0, p1, sA, sB; uniform float mode, has, mixF, mixP, t; uniform vec2 px;
+ const vec3 LW=vec3(.299,.587,.114);
+ const vec3 WET=vec3(.165,.624,.847), WATER=vec3(.188,.275,.847), GREEN=vec3(.247,.812,.471), GREEN0=vec3(.13,.35,.25), DRIED=vec3(.71,.5,.227);
+ float upOf(vec2 q){ return texture2D(sA,q).r*255.0; }
+ void main(){
+   vec3 col;
+   if(mode>2.5){
+     vec3 ph=texture2D(p0,v).rgb; float l=dot(ph,LW);
+     col=vec3(l*.5+.035)*vec3(.96,.98,1.03);
+     vec4 A=texture2D(sA,v), B=texture2D(sB,v);
+     float gu=A.r*255.0, gd=A.g*255.0, wu=A.b*255.0, wd=B.r*255.0, rise=B.g, fl=floor(B.b*255.0+.5);
+     if(abs(fl-85.0)<1.0 || fl>250.0) col=mix(col, GREEN0, .8);
+     if(has>.5){
+       float an=(mix(texture2D(f0,v).r, texture2D(f1,v).r, mixF)-.5)*12.0;      // dB brighter than the dry season
+       col=mix(col, WET, smoothstep(1.5,4.5,an)*.85);
+     }
+     float tp=t-${PHOTO_H.toFixed(4)};
+     if(gu<254.5 && tp>=gu){
+       float age=tp-gu;
+       vec3 g=mix(GREEN*.78, GREEN*1.08, rise);
+       if(gd<254.5 && tp>=gd) g=mix(g, DRIED, clamp((tp-gd)/6.0,0.0,1.0));
+       col=mix(col, g, .93);
+       float edge=0.0;                                                           // the green front: newly green next to not-yet-green ground
+       if(age<8.0){
+         for(int i=0;i<4;i++){
+           vec2 o = i==0?vec2(px.x,0.):i==1?vec2(-px.x,0.):i==2?vec2(0.,px.y):vec2(0.,-px.y);
+           if(upOf(v+o*1.5)>tp) edge=1.0;
+         }
+       }
+       col=mix(col, vec3(.86,1.0,.88), max(exp(-age/2.5)*.6, edge*(1.0-age/8.0)*.75));
+     }
+     bool permW = abs(fl-170.0)<1.0 || fl>250.0;
+     bool gone = wd<254.5 && tp>=wd;
+     if(!gone && (permW || (wu<254.5 && tp>=wu))){
+       float age = permW ? 99.0 : tp-wu;
+       col=mix(WATER, vec3(.8,.9,1.0), exp(-age/2.5)*.7);
+     }
+   } else if(mode>1.5){
+     col=mix(texture2D(p0,v).rgb, texture2D(p1,v).rgb, mixP);
+   } else {
+     float g=texture2D(base,v).r; vec3 grey=vec3(g*.62+.05);
+     float f=mix(texture2D(f0,v).r, texture2D(f1,v).r, mixF);
+     if(mode<.5){
+       float a=smoothstep(.36,.75,f)*has;
+       vec3 ramp=mix(vec3(.09,.31,.58), vec3(.72,.9,1.0), smoothstep(.4,1.0,f));
+       col=mix(grey, ramp, a*.92);
+     } else {
+       float d=(f-.5)*2.0;
+       vec3 up=vec3(.22,.53,.9), dn=vec3(.92,.45,.2);
+       col=mix(grey, d>0.0?up:dn, smoothstep(.2,.75,abs(d))*has*.9);
+     }
+   }
+   float e=min(min(v.x,1.0-v.x),min(v.y,1.0-v.y));
+   gl_FragColor=vec4(col, smoothstep(0.0,0.04,e));
+ }`;
+// rain: IMERG 0.1 degree cells on a mesh in map coordinates; value stored as sqrt(display intensity)
+const FS_RAIN = `precision mediump float; varying vec2 v; uniform sampler2D r0, r1; uniform float mixR;
+ void main(){ float b=mix(texture2D(r0,v).r, texture2D(r1,v).r, mixR); float u=b*b;
+   float a=smoothstep(.03,.2,u)*.28 + smoothstep(.2,.75,u)*.5;
+   vec3 c=mix(vec3(.8,.6,.95), vec3(1.0,.95,1.0), smoothstep(.25,.8,u));
+   gl_FragColor=vec4(c, a); }`;
+function prog(vs, fs) { const p = gl.createProgram(); for (const [ty, src] of [[gl.VERTEX_SHADER, vs], [gl.FRAGMENT_SHADER, fs]]) { const s = gl.createShader(ty); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); gl.attachShader(p, s); } gl.linkProgram(p); return p; }
+const P_CTX = prog(VS, FS_CTX), P_DET = prog(VS, FS_DET), P_RAIN = prog(VS, FS_RAIN), buf = gl.createBuffer();
+const quad = (x, y, w, h) => new Float32Array([x, y, 0, 0, x + w, y, 1, 0, x, y + h, 0, 1, x + w, y + h, 1, 1]);
+function texFrom(img, nearest) {
+  let src = img;
+  if (Math.max(img.width, img.height) > MAXTEX) { const k = MAXTEX / Math.max(img.width, img.height), c = document.createElement("canvas"); c.width = Math.floor(img.width * k); c.height = Math.floor(img.height * k); c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); src = c; }
+  const tx = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tx);
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false); gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+  const f = nearest ? gl.NEAREST : gl.LINEAR;
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, f); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, f);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return tx;
+}
+const loadImg = src => new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error("Could not load " + src)); i.src = src; });
+const TX = {}, pending = {};
+function tex(name) {
+  if (TX[name]) return TX[name];
+  if (!pending[name]) pending[name] = loadImg(name).then(i => { TX[name] = texFrom(i); draw(); });
+  return null;
+}
+// rain textures, built from the numbers in data.json
+const RT = new Map();
+function rainTex(key, grid, perDay) {
+  if (RT.has(key)) return RT.get(key);
+  const H = grid.length, W = grid[0].length, a = new Uint8Array(W * H);
+  // display intensity u in 0..1: daily totals over 0-40 mm/day, half-hourly rates over 0-20 mm/h
+  for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) { const u = Math.max(0, grid[r][c] || 0) / (perDay ? 40 : 20); a[r * W + c] = Math.min(255, Math.round(Math.sqrt(Math.min(1, u)) * 255)); }
+  const tx = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tx); gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, W, H, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, a);
+  for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+  RT.set(key, tx); return tx;
+}
+
+function resize() { const r = mapEl.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2); cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); ov.setAttribute("viewBox", `0 0 ${r.width} ${r.height}`); draw(); }
+function fit() { const r = mapEl.getBoundingClientRect(), d = D.detail; const s = Math.min(r.width / (d.w * 1.12), r.height / (d.h * 1.04)); view.s = s; view.x = d.x + d.w / 2 - r.width / 2 / s; view.y = d.y + d.h / 2 - r.height / 2 / s; }
+const trackOf = p => p === "dusk" ? "064" : "071";
+const passT = (d, p) => day(d) + (PASS_TIME[p][0] + PASS_TIME[p][1] / 60) / 24;
+const fmt = d => new Date(Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10))).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+
+// ---- frame sequences. A radar frame becomes visible when its (second) pass happens and blends in over XFADE.
+let SEQ = {}, RAIN_DAY = [];
+function buildSeqs() {
+  SEQ = {};
+  for (const p of ["dusk", "dawn"]) {
+    const coh = D.meta.coh.filter(c => c.track === trackOf(p)).map(c => ({ s: passT(c.d2, p), img: c.img, c }));
+    coh.push({ s: day("2026-11-01"), img: p === "dusk" ? "freq_dusk.jpg" : "freq_dawn.jpg", freq: true });
+    SEQ["coh_" + p] = coh;
+    SEQ["bsc_" + p] = D.meta.gcov.filter(g => g.track === trackOf(p)).map(g => ({ s: passT(g.date, p), img: g.img, g }));
+  }
+  RAIN_DAY = []; for (const r of D.rain) RAIN_DAY[Math.round(day(r.date))] = r;
+  SEQ.opt = D.meta.hls.map(h => ({ s: day(h.date) + PHOTO_H, img: h.img, h }));
+  // rain: daily (UTC days, centred at 15:00 Saudi time) unless every half hour of that day is available
+  const R = [];
+  D.rain.forEach((r, i) => {
+    const hh = D.hh && D.hh[r.date];
+    if (hh) hh.forEach((g, k) => R.push({ s: day(r.date) + (3 + k * 0.5 + 0.25) / 24, key: r.date + "_" + k, grid: g, perDay: false, hh: true }));
+    else R.push({ s: day(r.date) + 15 / 24, key: r.date, grid: r.grid, perDay: true });
+  });
+  SEQ.rain = R;
+}
+function at(seq, tt, xf = XFADE) {           // -> {a, b, m}: blend from a to b by m
+  let k = -1; for (let i = 0; i < seq.length; i++) if (seq[i].s <= tt) k = i; else break;
+  if (k < 0) return null;
+  const cur = seq[k], prev = seq[k - 1] || cur;
+  return { a: prev, b: cur, m: k === 0 ? 1 : Math.min(1, (tt - cur.s) / Math.min(xf, cur.s - prev.s)), cur };
+}
+function rainAt(tt) {                         // linear between neighbouring rain frames
+  const R = SEQ.rain; if (!R.length) return null;
+  let k = 0; while (k < R.length - 1 && R[k + 1].s <= tt) k++;
+  const a = R[k], b = R[Math.min(k + 1, R.length - 1)];
+  const m = b === a ? 0 : Math.max(0, Math.min(1, (tt - a.s) / (b.s - a.s)));
+  return { a, b, m };
+}
+
+function setMode(m) { mode = m; for (const k of ["sea", "coh", "bsc", "opt"]) $("m-" + k).setAttribute("aria-pressed", String(k === m)); legend(); updatePanel(); draw(); }
+function setPass(p) { pass = p; $("p-dusk").setAttribute("aria-pressed", String(p === "dusk")); $("p-dawn").setAttribute("aria-pressed", String(p === "dawn")); updatePanel(); draw(); }
+const plName = () => pass === "dusk" ? "dusk pass, 18:39" : "dawn pass, 05:39";
+function titles() {
+  const pl = plName();
+  if (mode === "sea") {
+    const w = at(SEQ["bsc_" + pass], t), o = at(SEQ.opt, t);
+    return ["Season · rain, wet ground, water and new green", `Wet ground: NISAR ${pl.split(",")[0]}${w ? " of " + fmt(w.cur.g.date) : " (none yet)"} · green and water: latest clear photo${o ? ", " + fmt(o.cur.h.date) : ""}`];
+  }
+  if (mode === "coh") {
+    const f = at(SEQ["coh_" + pass], t);
+    if (!f) return ["Radar · ground change", `Waiting for the first ${pl.split(",")[0]} pair (30 Jun)`];
+    if (f.cur.freq) return ["Radar · how often the ground changed, 24 Jul – 17 Oct", `Share of rainy-season windows with change, ${pl}`];
+    return [`Radar · ground change, ${fmt(f.cur.c.d1)} → ${fmt(f.cur.c.d2)}`, `NISAR coherence, ${pl} · ${f.cur.c.plain_changed}% of the coastal plain changed`];
+  }
+  if (mode === "bsc") { const f = at(SEQ["bsc_" + pass], t); return f ? [`Radar · wetness, ${fmt(f.cur.g.date)}`, `NISAR HH backscatter vs the dry season, ${pl} · ${f.cur.g.brighter}% of the plain brighter by >2 dB`] : ["Radar · wetness", "No pass yet"]; }
+  const f = at(SEQ.opt, t) || { cur: SEQ.opt[0] }, h = f.cur.h;
+  return [`Satellite photo, ${fmt(h.date)}`, `NASA HLS (Landsat + Sentinel-2), ${h.clear}% clear${h.clear < 95 ? "; cloudy parts filled from earlier dates" : ""}`];
+}
+const BASE_PHOTO = "hls_2026-06-21.jpg";
+function draw() {
+  if (!D || !TX["context.jpg"]) return;
+  const dpr = cv.width / mapEl.clientWidth;
+  gl.viewport(0, 0, cv.width, cv.height); gl.clearColor(0.04, 0.047, 0.055, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+  const vw = [view.s * dpr, view.x, view.y];
+  const use = (p, data) => { gl.useProgram(p); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+    const lp = gl.getAttribLocation(p, "p"), lu = gl.getAttribLocation(p, "uv"); gl.enableVertexAttribArray(lp); gl.vertexAttribPointer(lp, 2, gl.FLOAT, false, 16, 0); gl.enableVertexAttribArray(lu); gl.vertexAttribPointer(lu, 2, gl.FLOAT, false, 16, 8);
+    gl.uniform2f(gl.getUniformLocation(p, "res"), cv.width, cv.height); gl.uniform3f(gl.getUniformLocation(p, "vw"), ...vw); };
+  use(P_CTX, quad(0, 0, D.context.W, D.context.H)); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, TX["context.jpg"]);
+  gl.uniform1i(gl.getUniformLocation(P_CTX, "tex"), 0); gl.uniform1f(gl.getUniformLocation(P_CTX, "dim"), mode === "opt" ? 0 : 1); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+  const d = D.detail; use(P_DET, quad(d.x, d.y, d.w, d.h)); const U = n => gl.getUniformLocation(P_DET, n);
+  const base = TX["radar_base.jpg"]; if (!base) return;
+  let f0 = base, f1 = base, mixF = 1, has = 0, p0 = base, p1 = base, mixP = 0;
+  const radarSeq = mode === "coh" ? SEQ["coh_" + pass] : (mode === "bsc" || mode === "sea") ? SEQ["bsc_" + pass] : null;
+  if (radarSeq) {
+    const f = at(radarSeq, t);
+    if (f) { const ta = tex(f.a.img), tb = tex(f.b.img); if (tb) { f1 = tb; f0 = ta || tb; mixF = f.m; has = 1; } else if (ta) { f0 = f1 = ta; has = 1; } }
+    const i = f ? radarSeq.indexOf(f.cur) : -1; if (radarSeq[i + 1]) tex(radarSeq[i + 1].img);
+  }
+  if (mode === "opt") {
+    const f = at(SEQ.opt, t) || { a: SEQ.opt[0], b: SEQ.opt[0], m: 1, cur: SEQ.opt[0] };
+    const ta = tex(f.a.img), tb = tex(f.b.img); p0 = ta || tb || TX[SEQ.opt[0].img] || base; p1 = tb || p0; mixP = tb ? f.m : 0;
+    const i = SEQ.opt.indexOf(f.cur); for (let k = 1; k <= 3; k++) if (SEQ.opt[i + k]) tex(SEQ.opt[i + k].img);
+  }
+  if (mode === "sea") p0 = tex(BASE_PHOTO) || base;
+  const sA = TX["season_a.png"] || base, sB = TX["season_b.png"] || base;
+  [[base, "base"], [f0, "f0"], [f1, "f1"], [p0, "p0"], [p1, "p1"], [sA, "sA"], [sB, "sB"]].forEach(([tx, n], k) => { gl.activeTexture(gl.TEXTURE0 + k); gl.bindTexture(gl.TEXTURE_2D, tx); gl.uniform1i(U(n), k); });
+  gl.uniform1f(U("mode"), { coh: 0, bsc: 1, opt: 2, sea: TX["season_a.png"] ? 3 : 2 }[mode]); gl.uniform1f(U("has"), has);
+  gl.uniform1f(U("mixF"), mixF); gl.uniform1f(U("mixP"), mixP); gl.uniform1f(U("t"), t); gl.uniform2f(U("px"), 1 / d.W, 1 / d.H);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+  if ($("rainchk").checked && RAINMESH) {
+    const r = rainAt(t);
+    if (r) {
+      use(P_RAIN, RAINMESH); const UR = n => gl.getUniformLocation(P_RAIN, n);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, rainTex(r.a.key, r.a.grid, r.a.perDay)); gl.uniform1i(UR("r0"), 0);
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, rainTex(r.b.key, r.b.grid, r.b.perDay)); gl.uniform1i(UR("r1"), 1);
+      gl.uniform1f(UR("mixR"), r.m); gl.drawArrays(gl.TRIANGLES, 0, RAINMESH.length / 4);
+    }
+  }
+  drawOverlay();
+  const [a, b] = titles(); $("maptitle").innerHTML = `${a}<small>${b}</small>`;
+}
+let RAINMESH = null;
+function buildRainMesh() {
+  const C = D.rain_corners, rows = C.length - 1, cols = C[0].length - 1, v = [];
+  const P = (r, c) => [C[r][c][0], C[r][c][1], c / cols, r / rows];
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) { const a = P(r, c), b = P(r, c + 1), e = P(r + 1, c), f = P(r + 1, c + 1); v.push(...a, ...b, ...e, ...b, ...f, ...e); }
+  RAINMESH = new Float32Array(v);
+}
+// ---- events on the map
+function activeEvent() {
+  let best = null;
+  for (const e of EVENTS) if (t >= e.d0 - 0.15 && t < e.d0 + 3.2) best = e;
+  return best;
+}
+function nextPassAfter(tt, p) {
+  const c = D.meta.coh.find(c => c.track === trackOf(p) && passT(c.d2, p) >= tt);
+  const g = D.meta.gcov.find(g => g.track === trackOf(p) && passT(g.date, p) >= tt);
+  return { c, g };
+}
+function eventText(e) {
+  const R_ = D.rain, top = [...R_].sort((a, b) => b.mm - a.mm), cell = [...R_].sort((a, b) => b.max - a.max)[0], rd = R_.find(r => r.date === e.d);
+  if (e.txt === "WETTEST_DAY") return `The wettest day of the season in NASA's IMERG record: ${rd.mm.toFixed(1)} mm on average over the study area, ${rd.max.toFixed(0)} mm in the wettest cell.`;
+  if (e.txt === "OCT_DAY") return `October's wettest day and the season's ${top.indexOf(rd) === 1 ? "second-wettest" : "rank " + (top.indexOf(rd) + 1)}: ${rd.mm.toFixed(1)} mm on average over the study area (IMERG).`;
+  if (e.txt === "WADI_BID") return `Wadi Bid, north-east of Baysh, flows after afternoon rain (resident's video).${cell.date === e.d ? ` IMERG's strongest rain cell of the whole season, ${cell.max.toFixed(0)} mm, fell in the study area that day.` : ""}`;
+  if (e.txt === "FIRST_STORM") return D.facts ? `First rain of the season over the plain in NASA's IMERG record: ${D.facts.first_storm_mm} mm on average over the study area, ${D.facts.first_storm_max} mm in the wettest cell.` : "First storm of the season in NASA's IMERG record.";
+  if (e.txt === "WETTEST_PASS") { const k = "064_2026-09-22", pp = D.prepass[k]; return pp ? `More rain fell in the 6 hours before this dusk radar pass than before any other: ${pp.mean_mm.toFixed(1)} mm on average over the study area, with more than 1 mm on ${Math.round(pp.wet_share * 100)}% of it (IMERG half-hourly).` : "The radar pass with the most rain just before it."; }
+  return e.txt;
+}
+function calloutHTML(e) {
+  const src = e.url ? `<a href="${e.url}" target="_blank" rel="noopener">${e.src}</a>` : e.src;
+  const pin = D.pins && D.pins[e.d], rr = D.rain.find(r => r.date === e.d);
+  let dline = rr ? `IMERG that day: ${rr.mm.toFixed(1)} mm on average over the study area; ${pin.mm.toFixed(0)} mm in the wettest 0.1° cell (ring).` : "";
+  const nx = nextPassAfter(e.t, pass);
+  if (nx.g && t >= passT(nx.g.date, pass)) dline += `<br>Next ${pass} radar pass, ${fmt(nx.g.date)}: ${nx.g.brighter}% of the plain wetter than in the dry season${nx.c ? `; ${nx.c.plain_changed}% changed since ${fmt(nx.c.d1)}` : ""}.`;
+  else if (nx.g) dline += `<br>Next ${pass} radar pass: ${fmt(nx.g.date)}.`;
+  return `<div><span class="chip ${e.kind}">${e.label}</span><span class="t">${fmt(e.d)}</span> · ${eventText(e)} <span style="color:var(--ink-3)">· ${src}</span></div>${dline ? `<div class="d">${dline}</div>` : ""}`;
+}
+let shownEvent = null;
+function drawOverlay() {
+  const S = p => [((p[0] - view.x) * view.s), ((p[1] - view.y) * view.s)];
+  const r = mapEl.getBoundingClientRect();
+  let h = "";
+  for (const rg of D.regions) { const [x, y] = S(rg.p); h += `<text x="${x}" y="${y}" fill="#dfe6ec" fill-opacity=".55" font-family="Barlow Semi Condensed, sans-serif" font-weight="600" font-size="13" letter-spacing="3" text-anchor="middle">${rg.name}</text>`; }
+  for (const pl of D.places) {
+    const [x, y] = S(pl.p);
+    const mark = pl.kind === "dam" ? `<rect x="-4" y="-4" width="8" height="8" fill="#3046d8" stroke="#eef1f4" stroke-width="1.2"/>` : pl.kind === "peak" ? `<path d="M-6,4 L0,-6 L6,4Z" fill="#eef1f4" stroke="#0f1215" stroke-width="1"/>` : `<circle r="3.2" fill="#eef1f4" stroke="#0f1215" stroke-width="1.2"/>`;
+    h += `<g transform="translate(${x.toFixed(1)},${y.toFixed(1)})">${mark}<text x="8" y="4" fill="#eef1f4" font-family="Barlow, sans-serif" font-size="12.5" paint-order="stroke" stroke="#0f1215" stroke-width="3">${pl.name}</text></g>`;
+  }
+  const e = activeEvent(), co = $("callout");
+  if (e && D.pins && D.pins[e.d]) {
+    const [x, y] = S(D.pins[e.d].p), ph = REDUCED ? 0 : (performance.now() / 900) % 1;
+    const col = { alert: "#e5484d", warn: "#f2c46d", data: "#8fd3ff", report: "#b3bcc6" }[e.kind];
+    h += `<circle cx="${x}" cy="${y}" r="${10 + ph * 16}" fill="none" stroke="${col}" stroke-opacity="${(1 - ph) * .9}" stroke-width="2"/><circle cx="${x}" cy="${y}" r="7" fill="none" stroke="${col}" stroke-width="2.2"/><circle cx="${x}" cy="${y}" r="2" fill="${col}"/>`;
+    if (shownEvent !== e) { co.className = "callout " + e.kind; shownEvent = e; }
+    co.innerHTML = calloutHTML(e); co.hidden = false;
+    const cw = co.offsetWidth, chh = co.offsetHeight;
+    let cx = x + 18, cy = y - chh / 2;
+    if (cx + cw > r.width - 54) cx = x - 18 - cw;
+    cx = Math.max(12, Math.min(r.width - cw - 12, cx)); cy = Math.max(64, Math.min(r.height - chh - 12, cy));
+    co.style.left = cx + "px"; co.style.top = cy + "px";
+  } else { co.hidden = true; shownEvent = null; }
+  const px10 = 10000 / D.context.res * view.s;
+  h += `<g transform="translate(14,${r.height - 22})"><rect width="${px10}" height="5" fill="#eef1f4"/><rect width="${px10 / 2}" height="5" fill="#0f1215" stroke="#eef1f4"/><text y="-5" fill="#eef1f4" font-family="IBM Plex Mono, monospace" font-size="11">10 km</text></g>`;
+  ov.innerHTML = h;
+}
+const UNS = "https://saudiarabia.un.org/en/node/284255";
+function legend() {
+  let h = `<div class="section-k">How to read the map</div>`;
+  const row = (sw, txt) => `<div class="row"><span class="sw" style="${sw}"></span><span>${txt}</span></div>`;
+  if (mode === "sea") {
+    h += row("background:linear-gradient(90deg,rgba(204,153,242,.45),#fff2ff)", `<b>Rain falling</b> (NASA IMERG, 0.1° cells). Most days show the day's total (full colour at 40 mm); on alert days the storm moves every half hour (full colour at 20 mm/h).`);
+    h += row("background:var(--wet)", `<b>Wet ground seen by radar.</b> NISAR backscatter more than 2 dB above the dry season, on ground that is not green: soaked soil, mud, flowing wadis. Clouds don't block it.`);
+    h += row("background:var(--water)", `<b>Open water</b> in the photos: dam lakes and ponds. It flashes white when it first appears.`);
+    h += row("background:linear-gradient(90deg,#dbffe2,var(--green))", `<b>New green since June.</b> It flashes white in the first clear photo that shows it. On the plain this is mostly rain-fed farmland (sorghum, millet and sesame are the region's main rain-fed crops, <a href="${UNS}" target="_blank" rel="noopener" style="color:inherit">UN/FAO</a>) plus wild plants on the wadi fans.`);
+    h += row("background:var(--green-old)", `<b>Already green in June:</b> palms, irrigated farms, mangroves.`);
+    h += row("background:var(--dried)", `<b>Dried or harvested</b> after being green.`);
+    h += row("background:#5d6166", `Dry ground (June photo, in grey).`);
+    h += row("background:transparent;border:2px solid #e5484d;border-radius:50%;width:14px;height:14px;margin-left:10px", `<b>Alert or report</b>: the ring sits on that day's heaviest rain cell, and the card shows what the next radar pass saw.`);
+  }
+  if (mode === "coh") h += row("background:linear-gradient(90deg,#174f94,#b8e6ff)", "Ground changed between two radar passes 12 days apart (more change = brighter). It appears once the second pass is made.") + row("background:#5a6168", "Unchanged (radar image underneath)");
+  if (mode === "bsc") h += row("background:#3887e5", "Radar brighter than in the dry season: wetter ground, or growing crops") + row("background:#5a6168", "About the same as the dry season") + row("background:#eb7333", "Radar darker: smooth wet mud, standing water or bare ploughed land");
+  if (mode === "opt") h += row("background:#3c6b3a", "Green: vegetation and crops") + row("background:#b39e7e", "Sand and bare soil") + row("background:#5d6166", "The photo blends into the next clear date");
+  if (mode !== "sea") h += row("background:linear-gradient(90deg,rgba(204,153,242,.45),#fff2ff)", "Rain falling (NASA IMERG)");
+  $("legend").innerHTML = h;
+}
+function lastPair(p) { const f = at(SEQ["coh_" + p], t); return f && !f.cur.freq ? f.cur.c : null; }
+function updatePanel() {
+  const dd = new Date(D0 + t * 864e5 + 3 * 3600e3);
+  $("date").firstChild.nodeValue = dd.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }) + " ";
+  $("sub").textContent = dd.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) + " Saudi time";
+  const rd = RAIN_DAY[Math.floor(t)];
+  $("v-rain").innerHTML = rd ? `${rd.mm.toFixed(1)} <small>mm avg · ${rd.max.toFixed(0)} max</small>` : "—";
+  const w = at(SEQ["bsc_" + pass], t); $("v-wet").innerHTML = w ? `${Math.round(w.cur.g.brighter)}<small>% of plain · ${fmt(w.cur.g.date)}</small>` : "—";
+  const di = Math.max(0, Math.min(D.season.green_new_plain.length - 1, Math.floor(t - PHOTO_H)));
+  $("v-green").innerHTML = `${Math.round(D.season.green_new_plain[di]).toLocaleString("en-GB")}<small> km²</small>`;
+  $("v-water").innerHTML = `${(D.season.water_new[di] + D.season.water_june[di]).toFixed(1)}<small> km² · ${D.season.water_new[di].toFixed(1)} new</small>`;
+  for (const p of ["dusk", "dawn"]) { const c = lastPair(p); $("v-" + p).innerHTML = c ? `${Math.round(c.plain_changed)}<small>% · to ${fmt(c.d2)}</small>` : "—"; }
+  let cur = -1; EVENTS.forEach((e, k) => { if (t >= e.d0) cur = k; });
+  [...$("events").children].forEach((li, k) => li.className = k === cur ? "now" : k < cur ? "past" : "");
+  $("time").value = Math.round(toS(t) * 1000);
+  for (const id of ["c-rain", "c-coh", "c-green"]) { const c = document.querySelector(`#${id} .cur`); if (c) { const x = CX(t); c.setAttribute("x1", x); c.setAttribute("x2", x); } }
+}
+const CW = 320, CL = 30, CR = 6;
+const CX = tt => CL + (CW - CL - CR) * (tt - TSTART) / (TEND - TSTART);
+function axisMonths(H, bot) { let h = ""; for (const [m, s] of [["2026-06-01", "Jun"], ["2026-07-01", "Jul"], ["2026-08-01", "Aug"], ["2026-09-01", "Sep"], ["2026-10-01", "Oct"], ["2026-11-01", "Nov"]]) { const x = CX(day(m)); h += `<line x1="${x}" x2="${x}" y1="8" y2="${H - bot}" stroke="#20262c"/><text x="${x + 2}" y="${H - 5}">${s}</text>`; } return h; }
+function buildCharts() {
+  const H = 118, top = 14, bot = 16;
+  const mx = Math.ceil(Math.max(...D.rain.map(r => r.mm))), Y = v => top + (H - top - bot) * (1 - v / mx);
+  let h = axisMonths(H, bot) + `<text x="2" y="${Y(mx) + 3}">${mx}</text><text x="2" y="${H - bot}">0</text>`;
+  D.rain.forEach(r => { const i = day(r.date); if (r.mm <= 0.05) return; h += `<rect x="${CX(i + 0.5) - 0.8}" y="${Y(r.mm)}" width="2" height="${H - bot - Y(r.mm)}" rx=".6" fill="#e3b8f7"><title>${fmt(r.date)}: ${r.mm.toFixed(1)} mm on average over the study area, ${r.max.toFixed(0)} mm in the wettest cell</title></rect>`; });
+  for (const e of EVENTS) h += `<rect x="${CX(e.d0 + 0.5) - 2.5}" y="3" width="5" height="5" transform="rotate(45 ${CX(e.d0 + 0.5)} 5.5)" fill="${{ alert: "#e5484d", warn: "#f2c46d", data: "#8fd3ff", report: "#b3bcc6" }[e.kind]}"><title>${fmt(e.d)}: ${e.label}</title></rect>`;
+  h += `<line class="cur" y1="6" y2="${H - bot}" stroke="#8fd3ff" stroke-width="1.4"/>`;
+  $("c-rain").innerHTML = h;
+  const cmax = Math.ceil(Math.max(...D.meta.coh.map(c => c.plain_changed)) / 10) * 10, Yc = v => top + (H - top - bot) * (1 - v / cmax);
+  h = axisMonths(H, bot) + [0, cmax / 2, cmax].map(v => `<text x="2" y="${Yc(v) + 3}">${v}</text>`).join("");
+  for (const [p, col] of [["dusk", "#eb6834"], ["dawn", "#3987e5"]]) {
+    const L = D.meta.coh.filter(c => c.track === trackOf(p));
+    h += `<path d="${L.map((c, i) => `${i ? "L" : "M"}${CX((passT(c.d1, p) + passT(c.d2, p)) / 2).toFixed(1)},${Yc(c.plain_changed).toFixed(1)}`).join(" ")}" fill="none" stroke="${col}" stroke-width="2"/>`;
+    h += L.map(c => `<line x1="${CX(passT(c.d1, p))}" x2="${CX(passT(c.d2, p))}" y1="${Yc(c.plain_changed)}" y2="${Yc(c.plain_changed)}" stroke="${col}" stroke-opacity=".35" stroke-width="5"/><circle cx="${CX((passT(c.d1, p) + passT(c.d2, p)) / 2)}" cy="${Yc(c.plain_changed)}" r="3" fill="${col}" stroke="#161a1f" stroke-width="1.2"><title>${p} pass ${fmt(c.d1)}→${fmt(c.d2)}: ${c.plain_changed}% of the plain changed</title></circle>`).join("");
+  }
+  h += `<g transform="translate(${CL + 4},10)"><rect width="10" height="3" y="-3" fill="#eb6834"/><text x="14" y="0">dusk 18:39</text><rect x="78" width="10" height="3" y="-3" fill="#3987e5"/><text x="92" y="0">dawn 05:39</text></g>`;
+  h += `<line class="cur" y1="6" y2="${H - bot}" stroke="#8fd3ff" stroke-width="1.4"/>`;
+  $("c-coh").innerHTML = h;
+  // new green on the plain (km2), daily from the per-pixel green-up dates
+  const G = D.season.green_new_plain, gmax = Math.ceil(Math.max(...G) / 500) * 500, Yg = v => top + (H - top - bot) * (1 - v / gmax);
+  h = axisMonths(H, bot) + [0, gmax / 2, gmax].map(v => `<text x="2" y="${Yg(v) + 3}">${v}</text>`).join("");
+  h += `<path d="M${CX(0 + PHOTO_H)},${Yg(0)} ${G.map((v, i) => `L${CX(i + PHOTO_H).toFixed(1)},${Yg(v).toFixed(1)}`).join(" ")} L${CX(G.length - 1 + PHOTO_H)},${Yg(0)}Z" fill="#3fd27c" fill-opacity=".18"/>`;
+  h += `<path d="${G.map((v, i) => `${i ? "L" : "M"}${CX(i + PHOTO_H).toFixed(1)},${Yg(v).toFixed(1)}`).join(" ")}" fill="none" stroke="#3fd27c" stroke-width="2"/>`;
+  const gl_ = G.length - 1; h += `<text x="${CX(gl_) - 2}" y="${Yg(G[gl_]) - 5}" text-anchor="end">${Math.round(G[gl_]).toLocaleString("en-GB")} km²</text>`;
+  h += `<rect x="${CL}" y="0" width="${CW - CL - CR}" height="${H - bot}" fill="transparent"><title>New green on the coastal plain, from per-pixel green-up dates</title></rect>`;
+  h += `<line class="cur" y1="6" y2="${H - bot}" stroke="#8fd3ff" stroke-width="1.4"/>`;
+  $("c-green").innerHTML = h;
+}
+function buildFinding() {
+  const P = D.prepass, rows = [];
+  const dusk = Object.keys(P).filter(k => k.startsWith("064_")).sort(), dawn = Object.keys(P).filter(k => k.startsWith("071_")).sort();
+  for (let i = 0; i < Math.min(dusk.length, dawn.length); i++) {
+    const a = P[dusk[i]], b = P[dawn[i]];
+    rows.push(`<tr><td>${fmt(dusk[i].slice(4))}</td><td>${Math.round(a.wet_share * 100)}%</td><td>${a.mean_mm.toFixed(1)}</td><td>${Math.round(b.wet_share * 100)}%</td><td>${b.mean_mm.toFixed(1)}</td></tr>`);
+  }
+  const wet = D.meta.coh.filter(c => c.d1 >= "2026-07-24" && c.days === 12), avg = p => { const L = wet.filter(c => c.track === trackOf(p)); return L.reduce((s, c) => s + c.plain_changed, 0) / L.length; };
+  const dawnWet = dawn.filter(k => P[k].wet_share > 0.05).length, duskWet = dusk.filter(k => k >= "064_2026-07-24" && P[k].wet_share > 0.05).length, duskN = dusk.filter(k => k >= "064_2026-07-24").length;
+  const j30 = P["064_2026-06-30"];
+  $("finding").innerHTML = `<b>Dusk and dawn disagree.</b> Over the same 12-day windows of the rainy season, the dusk pass shows on average ${avg("dusk").toFixed(0)}% of the plain changed (19–53%) and the dawn pass ${avg("dawn").toFixed(0)}% (4–18%); in the dry June–July pairs, about 1% and 4.5%. Dusk stays at least three times dawn at every threshold tested. Half-hourly IMERG rain shows one difference: before ${duskWet} of the ${duskN} rainy-season dusk passes, rain had fallen on more than 5% of the study area in the previous 6 hours; before the dawn passes that happened ${dawnWet === 0 ? "not once" : dawnWet + " times"}. A second likely cause is afternoon storm winds moving growing crops and bushes; pre-dawn air is usually calm. Rain alone is not enough, though${j30 ? `: before the 30 Jun dusk pass ${Math.round(j30.wet_share * 100)}% of the area had rain, yet only about 1% of the plain changed` : ""}. The data here can't separate the two causes. So the <b>dawn pass is the cleaner measure of lasting change</b>, and the dusk pass catches the storms' immediate footprint.
+  ${D.xcheck ? `<p style="margin:8px 0 0"><b>Radar and photos agree.</b> Of the plain the dawn radar flagged in at least 3 of the 6 rainy-season windows (${D.xcheck.flagged_share}% of the plain), <b>${Math.round(D.xcheck.green_if_flagged)}%</b> (50–77%) was clearly greener in late-October photos than in June. Elsewhere on the plain the figure is <b>${Math.round(D.xcheck.green_if_not)}%</b> (17–35%). Flagged ground was 2.1 to 2.9 times as likely to green, whichever thresholds are used.</p>` : ""}
+  <table><tr><th>Dusk date</th><th>Dusk: area wet</th><th>mm</th><th>Dawn: area wet</th><th>mm</th></tr>${rows.join("")}</table>
+  <div style="margin-top:6px;font-size:11.5px;color:var(--ink-3)">Rain in the 6 hours before each pass, IMERG half-hourly. "Area wet" = share of the study area's 0.1° cells with more than 1 mm. Each dawn pass is the next morning. The radar wetness layer gives a mixed answer: on 17 Aug (dusk) and 18 Aug (dawn) the same share of the plain was brighter than in the dry season (8% and 7%, both 4–13%); on 10 Sep (dusk) 37% (23–54%), against 19% (9–34%) on 11 Sep (dawn). Ranges: brightness threshold moved from 1.5 to 2.5 dB; coherence threshold from 0.15 to 0.25.</div>`;
+  const F = D.facts || {};
+  $("finding2").innerHTML = `<b>The coast greens last.</b> Each 80 m pixel gets the date of the first clear photo where it turned green and stayed green. The median date below 100 m near the sea is <b>${F.band_0_100 || "19 Oct"}</b> (18–19 Oct at every threshold), against <b>${F.band_100_250 || "16 Sep"}</b> at 100–250 m (16–19 Sep). On the foothills (250–500 m) the median is ${F.band_250_500 || "27 Aug"}, but it moves between 17 Aug and 16 Sep with the threshold, so we don't quote it as a finding. By 1 Nov, <b>${sig3(D.season.green_new_plain[153]).toLocaleString("en-GB")} km²</b> (981–1,560) of the coastal plain was newly green: ${Math.round(D.season.green_new_plain[153] / D.season.plain_km2 * 100)}% (23–37%) of its ${sig3(D.season.plain_km2).toLocaleString("en-GB")} km². Ranges: NDVI rise threshold moved from 0.10 to 0.20.
+  <p style="margin:8px 0 0"><b>A dam lake filled up.</b> Around the Jizan Dam (east of Abu Arish), 8 of the 9 clear June photos show less than 0.6 km² of open water (the 5 Jun photo shows 1.4 km²); the 19 Oct and 4 Nov photos show about 2.5 km². Summer dust haze hides water in some July and August photos, so the map only marks water that stays visible in most later clear photos.</p>`;
+}
+const sig3 = v => { const e = Math.pow(10, Math.max(0, Math.floor(Math.log10(Math.abs(v) || 1)) - 2)); return Math.round(v / e) * e; };
+function buildEvents() {
+  $("events").innerHTML = EVENTS.map(e => `<li><span class="when">${fmt(e.d)}</span><span><span class="chip ${e.kind}">${e.label}</span>${eventText(e)} <span class="src">· ${e.url ? `<a href="${e.url}" target="_blank" rel="noopener">${e.src}</a>` : e.src}</span></span></li>`).join("");
+  [...$("events").children].forEach((li, k) => li.addEventListener("click", ev => { if (ev.target.closest("a")) return; jump(EVENTS[k].t); }));
+}
+function jump(tt) { t = tt; pause(); updatePanel(); draw(); }
+function buildTicks() {
+  const tl = [["2026-06-01", "1 Jun"], ["2026-07-01", "1 Jul"], ["2026-08-01", "1 Aug"], ["2026-09-01", "1 Sep"], ["2026-10-01", "1 Oct"], ["2026-11-01", "1 Nov"]];
+  $("ticklabels").innerHTML = tl.map(([d, s]) => `<span style="left:${(toS(day(d)) * 100).toFixed(2)}%">${s}</span>`).join("");
+  const tr = $("track"), mx = Math.max(...D.rain.map(r => r.mm));
+  D.rain.forEach(r => { const i = day(r.date); if (r.mm < 0.5) return; const d = document.createElement("div"); d.className = "raintick"; d.style.left = `${(toS(i + 0.5) * 100).toFixed(2)}%`; d.style.height = `${Math.max(2, 14 * r.mm / mx)}px`; tr.appendChild(d); });
+  for (const p of ["dusk", "dawn"]) for (const g of D.meta.gcov.filter(g => g.track === trackOf(p))) { const d = document.createElement("div"); d.className = "tick"; d.style.left = `calc(${(toS(passT(g.date, p)) * 100).toFixed(2)}% - 1px)`; d.style.background = p === "dusk" ? "#eb6834" : "#3987e5"; d.style.top = p === "dusk" ? "12px" : "22px"; d.style.height = "6px"; tr.appendChild(d); }
+  for (const e of EVENTS) { const b = document.createElement("button"); b.className = "flag " + e.kind; b.style.left = `${toS(e.t) * 100}%`; b.title = `${fmt(e.d)}: ${e.label}`; b.setAttribute("aria-label", `Jump to ${fmt(e.d)}, ${e.label}`); b.addEventListener("click", () => jump(e.t)); tr.appendChild(b); }
+  for (const [d, txt] of [["2026-06-03", "Dry"], ["2026-07-17", "Rainy season"], ["2026-10-27", "Drying out"]]) { const e = document.createElement("div"); e.className = "phase"; e.style.left = `${toS(day(d)) * 100}%`; e.style.marginLeft = "8px"; e.textContent = txt; tr.appendChild(e); }
+}
+// playback slows down through alert days so the half-hourly storm is visible
+function slowAt(tt) {
+  if (!$("slowchk").checked) return 1;
+  let f = 1;
+  for (const e of EVENTS) { const a = e.d0 + 0.1, b = e.d0 + 1.05, ramp = 0.35; const d = tt < a ? a - tt : tt > b ? tt - b : 0; const k = Math.min(1, d / ramp); f = Math.min(f, 0.09 + 0.91 * k * k); }
+  return f;
+}
+let last = 0;
+function frame(now) { if (!playing) return; const dt = Math.min(0.1, (now - last) / 1000); last = now; t += RATE * speed * slowAt(t) * dt; if (t >= TEND) { t = TEND; pause(); } updatePanel(); draw(); if (playing) requestAnimationFrame(frame); }
+function play() { if (!started || t >= TEND - 0.05) t = TSTART; started = true; playing = true; $("playicon").setAttribute("d", "M3 2h3.5v12H3zM9.5 2H13v12H9.5z"); $("play").setAttribute("aria-label", "Pause"); last = performance.now(); requestAnimationFrame(frame); }
+function pause() { playing = false; started = true; $("playicon").setAttribute("d", "M3 2l11 6-11 6z"); $("play").setAttribute("aria-label", "Play"); }
+$("play").addEventListener("click", () => playing ? pause() : play());
+$("time").addEventListener("input", e => { pause(); t = fromS(e.target.value / 1000); updatePanel(); draw(); });
+$("speed").addEventListener("change", e => speed = +e.target.value);
+$("rainchk").addEventListener("change", draw);
+for (const k of ["sea", "coh", "bsc", "opt"]) $("m-" + k).addEventListener("click", () => setMode(k));
+$("p-dusk").addEventListener("click", () => setPass("dusk")); $("p-dawn").addEventListener("click", () => setPass("dawn"));
+function zoomAt(k, cx, cy) { const r = mapEl.getBoundingClientRect(); cx ??= r.width / 2; cy ??= r.height / 2; const wx = view.x + cx / view.s, wy = view.y + cy / view.s; view.s = Math.max(0.1, Math.min(40, view.s * k)); view.x = wx - cx / view.s; view.y = wy - cy / view.s; draw(); }
+$("zin").addEventListener("click", () => zoomAt(1.4)); $("zout").addEventListener("click", () => zoomAt(1 / 1.4)); $("zfit").addEventListener("click", () => { fit(); draw(); });
+mapEl.addEventListener("wheel", e => { e.preventDefault(); const r = mapEl.getBoundingClientRect(); zoomAt(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+const ptrs = new Map(); let pinch = 0;
+mapEl.addEventListener("pointerdown", e => { if (e.target.closest("button, a, .callout")) return; mapEl.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]); mapEl.classList.add("dragging"); });
+mapEl.addEventListener("pointermove", e => { if (!ptrs.has(e.pointerId)) return; const [px, py] = ptrs.get(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), r = mapEl.getBoundingClientRect(); if (pinch) zoomAt(d / pinch, (a[0] + b[0]) / 2 - r.left, (a[1] + b[1]) / 2 - r.top); pinch = d; return; }
+  view.x -= (e.clientX - px) / view.s; view.y -= (e.clientY - py) / view.s; draw(); });
+const up = e => { ptrs.delete(e.pointerId); pinch = 0; if (!ptrs.size) mapEl.classList.remove("dragging"); };
+mapEl.addEventListener("pointerup", up); mapEl.addEventListener("pointercancel", up);
+document.addEventListener("keydown", e => { if (e.code === "Space" && e.target === document.body) { e.preventDefault(); playing ? pause() : play(); } });
+new ResizeObserver(resize).observe(mapEl);
+$("foot").innerHTML = `<b>Data.</b> Radar: NASA-ISRO NISAR L2 GUNW coherence (12-day pairs) and L2 GCOV HH backscatter (provisional products), track 64 descending (18:39) and track 71 ascending (05:39), resampled to 80 m for the web. Two June–July dawn pairs with processing stripes are not shown; the late-July to mid-August pairs span 24 days (one pass is missing). Rain: NASA GPM IMERG V07 Late run, daily and half-hourly, from NASA GES DISC (0.1° cells). Photos: NASA HLS v2 (Landsat 8/9 + Sentinel-2) via Microsoft Planetary Computer, 69 dates with at least 30% clear view. Elevation: Copernicus DEM; "coastal plain" = land below 250 m.
+<br><b>What is measured and what is filled in.</b> Every coloured pixel comes from a measurement. Between measurements the map blends: a radar frame appears when its pass is made and fades in over a day, then holds until the next pass; photos blend from one clear date to the next; daily rain totals blend from one day to the next, and on alert days with every half hour available, the half-hourly rates blend from one half hour to the next. Green and water dates are the first clear photo that shows the change, so they can be a few days late (the gap between clear photos, longer under summer haze). "New green" = NDVI above 0.3 and at least 0.15 above the pixel's June median, and still green in at least 60% of later clear photos. "Open water" = MNDWI above 0.1 under the same rule. "Wet ground" = HH backscatter more than 2 dB above the same track's dry-season median; growing plants also brighten radar, so it is only drawn where the photos do not show green. "Ground changed" = 12-day coherence at least 0.2 below the track's best dry-season coherence. Crop types are not measured here; the farmland note comes from the <a href="${UNS}" target="_blank" rel="noopener">UN in Saudi Arabia</a>. Event texts link to their sources; the map rings mark IMERG's wettest cell that day, not the place named in the report. The stat tiles hold the value from the latest pass or clear photo; they are not interpolated.<br><b>How we state numbers (the same rules on all three of our maps).</b> Every number is <i>measured</i> (calibrated NASA or NISAR data), <i>derived</i> with a stated rule, <i>reported</i> (official or news, linked) or <i>interpolated</i> (animation only, never quoted as a finding). Rules: radar change = 12-day NISAR coherence at least 0.20 below the pre-event baseline; radar brightening = backscatter more than 2 dB above the pre-event median; vegetation loss or gain = NDVI change of at least 0.15 across the 0.30 level; open water = MNDWI above 0.10; burned = dNBR at least 0.10. Each derived number was recomputed with its threshold nudged down and up, and is compared with a control (before the event, or ground beside it); where the result moves by more than 10%, a range is given in brackets.`;
+(async () => {
+  try {
+    D = await (await fetch("data.json")).json();
+    const fs = EVENTS.find(e => e.txt === "FIRST_STORM"); if (D.facts && fs) { fs.d = D.facts.first_storm; fs.d0 = day(fs.d); fs.t = fs.d0 + 14 / 24; }
+    buildSeqs(); buildRainMesh(); buildEvents(); buildCharts(); buildFinding(); buildTicks(); legend();
+    TX["context.jpg"] = texFrom(await loadImg("context.jpg"));
+    TX["radar_base.jpg"] = texFrom(await loadImg("radar_base.jpg"));
+    const [sa, sb, bp] = await Promise.all(["season_a.png", "season_b.png", BASE_PHOTO].map(loadImg));
+    TX["season_a.png"] = texFrom(sa, true); TX["season_b.png"] = texFrom(sb, true); TX[BASE_PHOTO] = texFrom(bp);
+    resize(); fit(); updatePanel(); draw();
+    $("loading").style.opacity = 0; setTimeout(() => $("loading").hidden = true, 500);
+    for (const g of D.meta.gcov) await new Promise(r => { tex(g.img); (pending[g.img] || Promise.resolve()).then(r, r); });
+    for (const c of D.meta.coh) tex(c.img);
+  } catch (err) { $("loading").textContent = "Could not load the map data: " + err.message; }
+})();
+// keep the alert ring pulsing while paused
+(function pulse() { if (!playing && D && activeEvent() && !REDUCED) drawOverlay(); setTimeout(() => requestAnimationFrame(pulse), 60); })();
+})();
+</script>

@@ -1,0 +1,213 @@
+{
+ "path_km": 59.5,
+ "corridor_km2": 48.5,
+ "corridor_valid": 1.0,
+ "stripped_low": {
+  "km2": 12.6,
+  "share_of_corridor": 26.1,
+  "any_change_corridor_pct": 26.7,
+  "any_change_control_pct": 3.3
+ },
+ "stripped_std": {
+  "km2": 11.7,
+  "share_of_corridor": 24.2,
+  "any_change_corridor_pct": 24.9,
+  "any_change_control_pct": 3.0
+ },
+ "stripped_high": {
+  "km2": 11.0,
+  "share_of_corridor": 22.7,
+  "any_change_corridor_pct": 23.4,
+  "any_change_control_pct": 2.7
+ },
+ "baseline_pairs": [
+  "20260608_20260620",
+  "20260620_20260702",
+  "20260702_20260714",
+  "20260714_20260726"
+ ],
+ "pairs": {
+  "20260608_20260620": {
+   "t0.15": {
+    "corridor": 27.5,
+    "control": 40.4
+   },
+   "t0.2": {
+    "corridor": 16.4,
+    "control": 26.5
+   },
+   "t0.25": {
+    "corridor": 8.5,
+    "control": 15.3
+   },
+   "valid_corridor": 1.0,
+   "median_coh_corridor": 0.47,
+   "median_coh_control": 0.45
+  },
+  "20260620_20260702": {
+   "t0.15": {
+    "corridor": 27.2,
+    "control": 29.9
+   },
+   "t0.2": {
+    "corridor": 17.2,
+    "control": 19.2
+   },
+   "t0.25": {
+    "corridor": 9.9,
+    "control": 11.3
+   },
+   "valid_corridor": 1.0,
+   "median_coh_corridor": 0.47,
+   "median_coh_control": 0.48
+  },
+  "20260702_20260714": {
+   "t0.15": {
+    "corridor": 44.9,
+    "control": 48.4
+   },
+   "t0.2": {
+    "corridor": 26.2,
+    "control": 28.6
+   },
+   "t0.25": {
+    "corridor": 13.8,
+    "control": 15.3
+   },
+   "valid_corridor": 1.0,
+   "median_coh_corridor": 0.4,
+   "median_coh_control": 0.42
+  },
+  "20260714_20260726": {
+   "t0.15": {
+    "corridor": 4.4,
+    "control": 1.8
+   },
+   "t0.2": {
+    "corridor": 2.3,
+    "control": 0.7
+   },
+   "t0.25": {
+    "corridor": 1.5,
+    "control": 0.3
+   },
+   "valid_corridor": 1.0,
+   "median_coh_corridor": 0.55,
+   "median_coh_control": 0.59
+  },
+  "20260726_20260819": {
+   "t0.15": {
+    "corridor": 39.1,
+    "control": 31.1
+   },
+   "t0.2": {
+    "corridor": 21.1,
+    "control": 16.7
+   },
+   "t0.25": {
+    "corridor": 11.0,
+    "control": 8.8
+   },
+   "valid_corridor": 1.0,
+   "median_coh_corridor": 0.43,
+   "median_coh_control": 0.49
+  },
+  "20260819_20260831": {
+   "t0.15": {
+    "corridor": 46.0,
+    "control": 12.9
+   },
+   "t0.2": {
+    "corridor": 38.1,
+    "control": 7.3
+   },
+   "t0.25": {
+    "corridor": 31.1,
+    "control": 4.3
+   },
+   "valid_corridor": 1.0,
+   "median_coh_corridor": 0.36,
+   "median_coh_control": 0.56
+  },
+  "20260831_20260912": {
+   "t0.15": {
+    "corridor": 50.2,
+    "control": 38.6
+   },
+   "t0.2": {
+    "corridor": 35.8,
+    "control": 24.6
+   },
+   "t0.25": {
+    "corridor": 25.1,
+    "control": 15.2
+   },
+   "valid_corridor": 1.0,
+   "median_coh_corridor": 0.37,
+   "median_coh_control": 0.45
+  },
+  "20260912_20260924": {
+   "t0.15": {
+    "corridor": 20.6,
+    "control": 17.2
+   },
+   "t0.2": {
+    "corridor": 12.2,
+    "control": 10.2
+   },
+   "t0.25": {
+    "corridor": 8.3,
+    "control": 6.5
+   },
+   "valid_corridor": 1.0,
+   "median_coh_corridor": 0.51,
+   "median_coh_control": 0.58
+  },
+  "20260924_20261006": {
+   "t0.15": {
+    "corridor": 67.7,
+    "control": 82.9
+   },
+   "t0.2": {
+    "corridor": 50.1,
+    "control": 67.4
+   },
+   "t0.25": {
+    "corridor": 33.8,
+    "control": 48.6
+   },
+   "valid_corridor": 1.0,
+   "median_coh_corridor": 0.33,
+   "median_coh_control": 0.31
+  },
+  "20261006_20261018": {
+   "t0.15": {
+    "corridor": 11.9,
+    "control": 13.7
+   },
+   "t0.2": {
+    "corridor": 8.0,
+    "control": 9.5
+   },
+   "t0.25": {
+    "corridor": 5.5,
+    "control": 6.5
+   },
+   "valid_corridor": 1.0,
+   "median_coh_corridor": 0.6,
+   "median_coh_control": 0.62
+  }
+ },
+ "xcheck_t0.15": {
+  "radar_changed_on_stripped": 89.9,
+  "radar_changed_rest_of_corridor": 32.0
+ },
+ "xcheck_t0.2": {
+  "radar_changed_on_stripped": 81.9,
+  "radar_changed_rest_of_corridor": 24.2
+ },
+ "xcheck_t0.25": {
+  "radar_changed_on_stripped": 72.1,
+  "radar_changed_rest_of_corridor": 18.1
+ }
+}

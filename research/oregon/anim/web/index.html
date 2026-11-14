@@ -1,0 +1,491 @@
+<meta charset="utf-8">
+<title>Big Grass Fire Map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: full-bleed map; story panel on the right (stacks under the map on phones); timeline bar along the bottom.
+   One deliberate look: a night-ops fire map, so colours are set once (no light variant). */
+:root {
+  --ink: #f2efe8;          /* primary text */
+  --ink-2: #b9b4a8;        /* secondary text */
+  --ink-3: #8a857a;        /* muted */
+  --ground: #121212;       /* page */
+  --panel: #1b1a19;        /* panels */
+  --rule: #34312d;         /* hairlines */
+  --flame: #ffb23f;        /* the fire front */
+  --ember: #eb6834;        /* burned / accent */
+  --scar: #8f2c12;
+  --radar: #7fd0c3;        /* radar mode accent */
+  --f-display: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-data: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--ground); color: var(--ink); font-family: var(--f-body); font-size: 15px; overflow: hidden; }
+.app { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 340px; grid-template-rows: minmax(0, 1fr) auto; }
+.map { position: relative; grid-row: 1; grid-column: 1; overflow: hidden; background: #0d0d0c; touch-action: none; cursor: grab; }
+.map.dragging { cursor: grabbing; }
+.map canvas, .map svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.map svg { pointer-events: none; }
+.side { grid-row: 1 / span 2; grid-column: 2; background: var(--panel); border-left: 1px solid var(--rule); display: flex; flex-direction: column; min-height: 0;
+  padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-left: 18px; padding-block: 18px 12px; gap: 16px; overflow-y: auto; }
+.bar { grid-row: 2; grid-column: 1; background: var(--panel); border-top: 1px solid var(--rule);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: 16px; padding-block: 10px 12px; display: grid; gap: 6px; }
+
+h1 { margin: 0; font-family: var(--f-display); font-weight: 700; font-size: 26px; line-height: 1.05; letter-spacing: 0.01em; text-wrap: balance; }
+.kicker { font-family: var(--f-display); font-weight: 600; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ember); }
+.lede { margin: 6px 0 0; color: var(--ink-2); font-size: 14px; line-height: 1.45; }
+
+.clock { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; padding-block: 12px; border-block: 1px solid var(--rule); }
+.clock .date { grid-column: 1 / -1; font-family: var(--f-display); font-weight: 600; font-size: 30px; line-height: 1; }
+.clock .date small { font-size: 15px; color: var(--ink-3); font-weight: 500; margin-left: 6px; }
+.stat .k { font-family: var(--f-display); font-size: 11.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+.stat .v { font-family: var(--f-data); font-size: 19px; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.stat .v small { font-size: 12px; color: var(--ink-3); }
+.stat.hot .v { color: var(--flame); }
+
+.chart { width: 100%; height: 92px; display: block; }
+.chart text { font-family: var(--f-data); font-size: 9.5px; fill: var(--ink-3); }
+
+.events { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 13.5px; line-height: 1.35; }
+.events li { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 8px; padding: 6px 8px; border-radius: 4px; color: var(--ink-3); cursor: pointer; transition: color .3s, background .3s; }
+.events li .when { font-family: var(--f-data); font-size: 11.5px; padding-top: 1px; }
+.events li.past { color: var(--ink-2); }
+.events li.now { color: var(--ink); background: #2a2420; }
+.events li.now .when { color: var(--flame); }
+.events li .src { color: var(--ink-3); font-size: 11.5px; }
+.section-k { font-family: var(--f-display); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 6px; }
+
+.controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+button, select { font: inherit; color: var(--ink); background: #262420; border: 1px solid var(--rule); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+button:hover, select:hover { border-color: #5a554d; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--flame); outline-offset: 2px; }
+#play { width: 44px; height: 36px; padding: 0; display: grid; place-items: center; background: var(--ember); border-color: var(--ember); color: #1a0d06; }
+#play svg { width: 16px; height: 16px; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; background: transparent; color: var(--ink-2); padding: 6px 10px; font-family: var(--f-display); font-weight: 600; font-size: 13.5px; letter-spacing: 0.02em; }
+.seg button[aria-pressed="true"] { background: #3a2d24; color: var(--ink); }
+.seg button + button { border-left: 1px solid var(--rule); }
+.spacer { flex: 1; }
+label.chk { display: inline-flex; gap: 6px; align-items: center; color: var(--ink-2); font-size: 13.5px; cursor: pointer; }
+
+.track { position: relative; height: 34px; }
+.track input[type=range] { position: absolute; inset: 12px 0 auto; width: 100%; margin: 0; appearance: none; background: transparent; height: 14px; }
+.track input[type=range]::-webkit-slider-runnable-track { height: 4px; background: #3a3631; border-radius: 2px; }
+.track input[type=range]::-moz-range-track { height: 4px; background: #3a3631; border-radius: 2px; }
+.track input[type=range]::-webkit-slider-thumb { appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--flame); margin-top: -5px; border: 2px solid #1a0d06; }
+.track input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--flame); border: 2px solid #1a0d06; }
+.phase { position: absolute; top: 0; font-family: var(--f-display); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
+.tick { position: absolute; top: 9px; width: 2px; height: 10px; background: #6d665c; pointer-events: none; }
+.ticklabels { position: relative; height: 14px; font-family: var(--f-data); font-size: 10.5px; color: var(--ink-3); }
+.ticklabels span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+
+.legend { display: grid; gap: 6px; font-size: 13px; color: var(--ink-2); }
+.legend .row { display: flex; align-items: center; gap: 8px; }
+.legend .sw { width: 26px; height: 10px; border-radius: 2px; flex: none; }
+.zoom { position: absolute; right: 12px; top: 12px; display: grid; gap: 4px; }
+.zoom button { width: 34px; height: 34px; padding: 0; font-size: 18px; background: rgba(27,26,25,.9); }
+.mapnote { position: absolute; left: 12px; bottom: 10px; font-size: 11.5px; color: var(--ink-2); background: rgba(18,18,18,.72); padding: 4px 8px; border-radius: 4px; max-width: calc(100% - 24px); }
+.loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ink-2); font-family: var(--f-display); letter-spacing: 0.08em; text-transform: uppercase; font-size: 13px; background: #0d0d0c; transition: opacity .5s; }
+.foot { font-size: 11.5px; color: var(--ink-3); line-height: 1.45; margin-top: auto; }
+.foot a { color: var(--ink-2); }
+
+@media (max-width: 860px) {
+  body { overflow: auto; }
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: 62vh auto auto; height: auto; }
+  .map { grid-row: 1; height: 62vh; }
+  .bar { grid-row: 2; grid-column: 1; padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .side { grid-row: 3; grid-column: 1; border-left: 0; border-top: 1px solid var(--rule); padding-left: max(16px, env(safe-area-inset-left, 0px)); overflow: visible; }
+  .phase { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .events li { transition: none; } }
+</style>
+
+<div class="app">
+  <div class="map" id="map">
+    <canvas id="gl"></canvas>
+    <svg id="ov" aria-hidden="true"></svg>
+    <div class="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button><button id="zfit" aria-label="Fit fire to view">⤢</button></div>
+    <div class="mapnote" id="mapnote">NASA HLS 30 m true colour, blended into MODIS 10 Jul 2026 · drag to pan, scroll to zoom</div>
+    <div class="loading" id="loading">Loading satellite imagery…</div>
+  </div>
+
+  <div class="bar">
+    <div class="controls">
+      <button id="play" aria-label="Play"><svg viewBox="0 0 16 16"><path id="playicon" d="M3 2l11 6-11 6z" fill="currentColor"/></svg></button>
+      <div class="seg" role="group" aria-label="Imagery">
+        <button id="m-tc" aria-pressed="true">True colour</button>
+        <button id="m-fc" aria-pressed="false">False colour</button>
+        <button id="m-rad" aria-pressed="false">Radar · NISAR</button>
+      </div>
+      <label class="chk"><input type="checkbox" id="perim" checked> Official perimeter</label>
+      <span class="spacer"></span>
+      <label class="chk">Speed <select id="speed"><option value="0.5">½×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></label>
+    </div>
+    <div class="track" id="track">
+      <input type="range" id="time" min="0" max="1000" step="1" value="0" aria-label="Time">
+    </div>
+    <div class="ticklabels" id="ticklabels"></div>
+  </div>
+
+  <aside class="side">
+    <div>
+      <div class="kicker">Oregon–Idaho · July–October 2026</div>
+      <h1>Big Grass Fire, from one lightning strike to 575,000 acres</h1>
+      <p class="lede">Every burned pixel lights up on the day satellites first saw it burn, then turns into what the ground looked like afterwards.</p>
+    </div>
+    <div class="clock">
+      <div class="date" id="date">23 Jul 2026<small id="dayn"></small></div>
+      <div class="stat hot"><div class="k">Burned so far · est.</div><div class="v" id="area">0 <small>km²</small></div></div>
+      <div class="stat"><div class="k">Share of final scar · est.</div><div class="v" id="pct">0%</div></div>
+      <div class="stat"><div class="k">In acres · est.</div><div class="v" id="acres">0</div></div>
+      <div class="stat"><div class="k">Contained</div><div class="v" id="cont">—</div></div>
+    </div>
+    <div>
+      <div class="section-k">Burned area: estimated between satellite looks, final value measured</div>
+      <svg class="chart" id="chart" viewBox="0 0 300 92" preserveAspectRatio="none"></svg>
+    </div>
+    <div>
+      <div class="section-k">What happened</div>
+      <ol class="events" id="events"></ol>
+    </div>
+    <div class="legend" aria-label="Legend">
+      <div class="section-k">Key</div>
+      <div class="row"><span class="sw" style="background:linear-gradient(90deg,#fff6cf,#ffc23d)"></span>Fire front, burning in the last few hours</div>
+      <div class="row"><span class="sw" style="background:linear-gradient(90deg,#ff6a1a,#c2370f)"></span>Burned in the last day</div>
+      <div class="row"><span class="sw" style="background:#5a2a1e"></span>Burned ground (real post-fire satellite image)</div>
+      <div class="row"><span class="sw" style="background:#6f6a60"></span>Unburned land, dimmed for contrast</div>
+    </div>
+    <p class="foot">Daily timing from NASA VIIRS fire detections (375 m); burn edges from NASA HLS (Landsat + Sentinel-2, 30 m) before/after; spread within each day is interpolated outward from the previous day's edge. The burned-so-far and share tiles follow that interpolation and are estimates; the burned area itself (1,810 km²) is measured from pre- and post-fire HLS median composites (dNBR at least 0.10), inside the official NIFC perimeter. Radar: NASA-ISRO NISAR L2 GCOV, calibrated backscatter (track 114, every 12 days), read from the HDF5 files, with HV compared with the median of the three pre-fire passes (22 Jun, 4 Jul, 16 Jul); "burned hottest" = dNBR above 0.44 (7% of the burned ground). NISAR has no passes over the fire from 26 Jul to 12 Aug, so the radar pair spanning the fire is 36 days long, not 12; the land outside is measured over the same pair. Acres, containment and crew numbers are reported (NIFC, idahonews.com, Elkhorn Media Group).<br><b>How we state numbers (the same rules on all three of our maps).</b> Every number is <i>measured</i> (calibrated NASA or NISAR data), <i>derived</i> with a stated rule, <i>reported</i> (official or news) or <i>interpolated</i> (animation only, never quoted as a finding). Rules: radar change = 12-day NISAR coherence at least 0.20 below the pre-event baseline; radar darkening = backscatter more than 2 dB below the pre-event median; vegetation loss or gain = NDVI change of at least 0.15 across the 0.30 level; open water = MNDWI above 0.10; burned = dNBR at least 0.10. Each derived number was recomputed with its threshold nudged down and up, and is compared with a control (before the event, or ground beside it); where the result moves by more than 10%, a range is given in brackets. Research build, 14 Nov 2026.</p>
+  </aside>
+</div>
+
+<script>
+(() => {
+"use strict";
+const T0 = Date.UTC(2026, 6, 23);                 // hour 0 = 23 Jul 2026
+const H = (y, m, d, h = 0) => (Date.UTC(y, m - 1, d, h) - T0) / 3.6e6;
+const TSTART = H(2026, 7, 22, 12), TEND = H(2026, 10, 25);
+const FIRE_END = H(2026, 8, 28);
+const FINAL_KM2_OFFICIAL = 2327.6;
+
+const SCENES = {
+  tc:  { pre: "opt_tc_pre.jpg", after: [["opt_tc_post.jpg", H(2026,8,30)], ["opt_tc_sep17.jpg", H(2026,9,17)], ["opt_tc_oct07.jpg", H(2026,10,7)], ["opt_tc_oct24.jpg", H(2026,10,24)]],
+         note: "NASA HLS 30 m true colour, blended into MODIS 10 Jul 2026" },
+  fc:  { pre: "opt_fc_pre.jpg", after: [["opt_fc_post.jpg", H(2026,8,30)], ["opt_fc_sep17.jpg", H(2026,9,17)], ["opt_fc_oct07.jpg", H(2026,10,7)], ["opt_fc_oct24.jpg", H(2026,10,24)]],
+         note: "NASA HLS false colour (SWIR · NIR · red): live plants green, fresh burn deep red" },
+  rad: { pre: "radar_2026-07-16.jpg", after: [["radar_2026-08-21.jpg", H(2026,8,21)], ["radar_2026-09-26.jpg", H(2026,9,26)], ["radar_2026-10-20.jpg", H(2026,10,20)]],
+         note: "NASA-ISRO NISAR L-band radar (calibrated GCOV, same dB scale every date), sees through smoke and cloud; green = HV, shrub structure; magenta = HH, bare ground" },
+};
+const EVENTS = [
+  [H(2026,7,23,14), "Lightning starts a fire about 25 miles southwest of Jordan Valley, Oregon.", "NIFC"],
+  [H(2026,7,26), "The busiest day of the fire: 19% of all its VIIRS fire detections are first seen today, more than on any other day, as it races north and east.", "VIIRS"],
+  [H(2026,7,27), "NISAR has no passes over the fire from 26 Jul to 12 Aug (a planned data gap). Optical satellites keep watching.", "ASF search"],
+  [H(2026,7,28), "About 300,000 acres and only 5% contained.", "news"],
+  [H(2026,7,29,7), "Six days after ignition, the clear parts of this morning's photos show at least 40% of the final burned area already burned (up to 76% if the 37% hidden by smoke had burned too).", "HLS"],
+  [H(2026,8,6), "A second surge pushes the fire south and east toward Idaho.", "VIIRS"],
+  [H(2026,8,10), "541,000 acres, 41% contained. About 1,050 firefighters, 39 dozers and 6 helicopters on the fire.", "news"],
+  [H(2026,8,15), "578,000 acres, 55% contained. Storms spark new fires nearby.", "news"],
+  [H(2026,8,23), "93% contained; command handed back to local crews.", "NIFC"],
+  [H(2026,8,21), "NISAR's first pass after the gap. Against 16 Jul (a 36-day pair), 38% (30–47%) of the burned ground has changed, and 88% where it burned hottest; outside the fire, 4% (1–9%).", "NISAR"],
+  [H(2026,8,30), "First clear satellite view of the whole scar: 1,810 km² (1,610–1,950) burned, 78% (69–84%) of the 2,330 km² official perimeter (575,163 acres). The rest is unburned islands; only 3% of the land outside the perimeter passes the same test.", "HLS · NIFC"],
+  [H(2026,9,17), "Ash and char start to blow away; the scar edges fade.", "HLS"],
+  [H(2026,10,7), "Autumn rain greens grass inside the scar, but shrubs are gone.", "HLS"],
+  [H(2026,10,20), "Radar: where it burned hottest, the shrub signal (HV) is at 51% of its pre-fire level, against 81% on unburned land outside, which summer drying lowers too. 81% (64–93%) of that ground is more than 2 dB darker than before the fire; outside, 3.5% (1–10%).", "NISAR"],
+];
+const CONTAIN = [[H(2026,7,28), "5%"], [H(2026,8,10), "41%"], [H(2026,8,15), "55%"], [H(2026,8,23), "93%"]];
+const TICKS = [[H(2026,7,23), "23 Jul"], [H(2026,8,1), "1 Aug"], [H(2026,8,10), "10 Aug"], [H(2026,8,20), "20 Aug"], [H(2026,9,1), "1 Sep"], [H(2026,10,1), "1 Oct"], [H(2026,10,24), "24 Oct"]];
+
+// timeline: the fire weeks get most of the slider
+const SPLIT = 0.72;
+const toS = t => t <= FIRE_END ? SPLIT * (t - TSTART) / (FIRE_END - TSTART) : SPLIT + (1 - SPLIT) * (t - FIRE_END) / (TEND - FIRE_END);
+const fromS = s => s <= SPLIT ? TSTART + (FIRE_END - TSTART) * s / SPLIT : FIRE_END + (TEND - FIRE_END) * (s - SPLIT) / (1 - SPLIT);
+
+const $ = id => document.getElementById(id);
+const mapEl = $("map"), cv = $("gl"), ov = $("ov");
+const gl = cv.getContext("webgl", { antialias: false, premultipliedAlpha: false, preserveDrawingBuffer: false });
+if (!gl) { $("loading").textContent = "This map needs WebGL, which this browser has turned off."; return; }
+const MAXTEX = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+
+let D = null;                        // data.json
+let t = TSTART, playing = false, mode = "tc", speed = 1;
+const view = { s: 1, x: 0, y: 0 };    // screen = (ctx_px - [x,y]) * s
+
+// ---------------------------------------------------------------- GL setup
+const VS = `attribute vec2 p; attribute vec2 uv; uniform vec2 res; uniform vec3 vw; varying vec2 v;
+ void main(){ vec2 s=(p-vw.yz)*vw.x; gl_Position=vec4(s.x/res.x*2.0-1.0, 1.0-s.y/res.y*2.0, 0.0, 1.0); v=uv; }`;
+const FS_CTX = `precision mediump float; varying vec2 v; uniform sampler2D tex;
+ void main(){ vec3 c=texture2D(tex,v).rgb; float l=dot(c,vec3(.299,.587,.114)); c=mix(vec3(l),c,.45)*.72+.03; gl_FragColor=vec4(c,1.0); }`;
+const FS_DET = `precision highp float; varying vec2 v;
+ uniform sampler2D pre, a0, a1, arr; uniform float t, mixA, isRad, texel; uniform vec2 px;
+ float hours(vec4 a){ return (a.r*255.0*256.0 + a.g*255.0)/4.0; }
+ vec3 fireRamp(float age){
+   vec3 c1=vec3(1.0,.965,.81), c2=vec3(1.0,.76,.24), c3=vec3(1.0,.42,.10), c4=vec3(.76,.22,.06);
+   if(age<2.0) return mix(c1,c2,age/2.0);
+   if(age<9.0) return mix(c2,c3,(age-2.0)/7.0);
+   return mix(c3,c4,clamp((age-9.0)/18.0,0.0,1.0)); }
+ void main(){
+   vec3 b=texture2D(pre,v).rgb;
+   float l=dot(b,vec3(.299,.587,.114));
+   vec3 muted=mix(vec3(l),b,.45)*.74+.03;
+   vec4 A=texture2D(arr,v);
+   vec3 col=muted;
+   if(A.b>.5){
+     float h=hours(A); float age=t-h;
+     if(age>=0.0){
+       vec3 af=mix(texture2D(a0,v).rgb, texture2D(a1,v).rgb, mixA);
+       float la=dot(af,vec3(.299,.587,.114));
+       vec3 scar = isRad>.5 ? mix(af, vec3(la)*vec3(1.25,.62,.5), .55) : mix(af, af*vec3(1.35,.62,.5)+vec3(.05,0.,0.), .55);
+       float k=exp(-age/16.0);
+       col=mix(scar, fireRamp(age), clamp(k*1.25,0.0,1.0));
+       // frontier: burning now and next to unburned ground
+       if(age<10.0){
+         float edge=0.0;
+         for(int i=0;i<4;i++){
+           vec2 o = i==0?vec2(px.x,0.):i==1?vec2(-px.x,0.):i==2?vec2(0.,px.y):vec2(0.,-px.y);
+           vec4 n=texture2D(arr,v+o*2.0);
+           if(n.b<.5 || hours(n)>t) edge=1.0;
+         }
+         col=mix(col, vec3(1.0,.98,.88), edge*(1.0-age/10.0));
+       }
+     }
+   }
+   float e=min(min(v.x,1.0-v.x),min(v.y,1.0-v.y));
+   float alpha=smoothstep(0.0,0.07,e);
+   gl_FragColor=vec4(col,alpha);
+ }`;
+function prog(vs, fs) {
+  const p = gl.createProgram();
+  for (const [type, src] of [[gl.VERTEX_SHADER, vs], [gl.FRAGMENT_SHADER, fs]]) {
+    const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    gl.attachShader(p, s);
+  }
+  gl.linkProgram(p); return p;
+}
+const P_CTX = prog(VS, FS_CTX), P_DET = prog(VS, FS_DET);
+const buf = gl.createBuffer();
+function quad(x, y, w, h) {
+  return new Float32Array([x, y, 0, 0, x + w, y, 1, 0, x, y + h, 0, 1, x + w, y + h, 1, 1]);
+}
+function texFrom(img, nearest) {
+  let src = img;
+  if (Math.max(img.width, img.height) > MAXTEX) {          // shrink for small GPUs (not the arrival map)
+    const k = MAXTEX / Math.max(img.width, img.height), c = document.createElement("canvas");
+    c.width = Math.floor(img.width * k); c.height = Math.floor(img.height * k); c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); src = c;
+  }
+  const tx = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tx);
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+  gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+  const f = nearest ? gl.NEAREST : gl.LINEAR;
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, f); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, f);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return tx;
+}
+const loadImg = src => new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error("Could not load " + src)); i.src = src; });
+const texCache = {};
+async function tex(name, nearest) { if (!texCache[name]) texCache[name] = loadImg(name).then(i => texFrom(i, nearest)); return texCache[name]; }
+
+let TX = {};
+async function setMode(m) {
+  mode = m;
+  for (const [id, k] of [["m-tc", "tc"], ["m-fc", "fc"], ["m-rad", "rad"]]) $(id).setAttribute("aria-pressed", String(k === m));
+  $("mapnote").textContent = SCENES[m].note + " · drag to pan, scroll to zoom";
+  const sc = SCENES[m];
+  const [pre, ...after] = await Promise.all([tex(sc.pre), ...sc.after.map(a => tex(a[0]))]);
+  if (mode !== m) return;
+  TX.pre = pre; TX.after = after; TX.afterT = sc.after.map(a => a[1]);
+  draw();
+}
+
+function resize() {
+  const r = mapEl.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+  ov.setAttribute("viewBox", `0 0 ${r.width} ${r.height}`);
+  draw();
+}
+function fit() {
+  const r = mapEl.getBoundingClientRect(), d = D.detail;
+  const s = Math.min(r.width / (d.w * 1.3), r.height / (d.h * 1.12));
+  view.s = s; view.x = d.x + d.w / 2 - r.width / 2 / s; view.y = d.y + d.h / 2 - r.height / 2 / s;
+}
+
+function draw() {
+  if (!D || !TX.pre || !TX.ctx) return;
+  const dpr = cv.width / mapEl.clientWidth;
+  gl.viewport(0, 0, cv.width, cv.height);
+  gl.clearColor(0.05, 0.05, 0.047, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+  const vw = [view.s * dpr, view.x, view.y];
+  function drawQuad(p, data) {
+    gl.useProgram(p); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+    const lp = gl.getAttribLocation(p, "p"), lu = gl.getAttribLocation(p, "uv");
+    gl.enableVertexAttribArray(lp); gl.vertexAttribPointer(lp, 2, gl.FLOAT, false, 16, 0);
+    gl.enableVertexAttribArray(lu); gl.vertexAttribPointer(lu, 2, gl.FLOAT, false, 16, 8);
+    gl.uniform2f(gl.getUniformLocation(p, "res"), cv.width, cv.height);
+    gl.uniform3f(gl.getUniformLocation(p, "vw"), ...vw);
+  }
+  // context
+  drawQuad(P_CTX, quad(0, 0, D.context.W, D.context.H));
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, TX.ctx); gl.uniform1i(gl.getUniformLocation(P_CTX, "tex"), 0);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  // detail
+  const d = D.detail;
+  drawQuad(P_DET, quad(d.x, d.y, d.w, d.h));
+  const at = TX.afterT; let i = 0;
+  while (i < at.length - 1 && t > at[i + 1]) i++;
+  const j = Math.min(i + 1, at.length - 1);
+  const m = j === i ? 0 : Math.min(1, Math.max(0, (t - at[i]) / (at[j] - at[i])));
+  const U = n => gl.getUniformLocation(P_DET, n);
+  [[TX.pre, "pre"], [TX.after[i], "a0"], [TX.after[j], "a1"], [TX.arr, "arr"]].forEach(([tx, n], k) => {
+    gl.activeTexture(gl.TEXTURE0 + k); gl.bindTexture(gl.TEXTURE_2D, tx); gl.uniform1i(U(n), k);
+  });
+  gl.uniform1f(U("t"), t); gl.uniform1f(U("mixA"), m); gl.uniform1f(U("isRad"), mode === "rad" ? 1 : 0);
+  gl.uniform2f(U("px"), 1 / d.W, 1 / d.H);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  drawOverlay();
+}
+
+// ---------------------------------------------------------------- SVG overlay (vectors stay sharp at any zoom)
+const NS = "http://www.w3.org/2000/svg";
+function drawOverlay() {
+  const S = p => [((p[0] - view.x) * view.s).toFixed(1), ((p[1] - view.y) * view.s).toFixed(1)];
+  let h = "";
+  for (const ln of D.lines) {
+    const pts = ln.pts.map(p => S(p).join(",")).join(" ");
+    h += `<polyline points="${pts}" fill="none" stroke="#d8d2c4" stroke-opacity=".55" stroke-width="1.2" stroke-dasharray="6 4 1.5 4"/>`;
+  }
+  if ($("perim").checked) for (const poly of D.perimeter) {
+    h += `<polygon points="${poly.map(p => S(p).join(",")).join(" ")}" fill="none" stroke="#f2efe8" stroke-opacity=".8" stroke-width="1.1" stroke-dasharray="3 3"/>`;
+  }
+  for (const r of D.regions) { const [x, y] = S(r.p); h += `<text x="${x}" y="${y}" fill="#d8d2c4" fill-opacity=".7" font-family="Barlow Semi Condensed, sans-serif" font-weight="600" font-size="13" letter-spacing="3" text-anchor="middle">${r.name}</text>`; }
+  for (const pl of D.places) {
+    const [x, y] = S(pl.p);
+    if (pl.kind === "origin") {
+      const pulse = t < H(2026,7,26) ? 1 : 0;
+      h += `<g transform="translate(${x},${y})">${pulse ? `<circle r="14" fill="none" stroke="#ffb23f" stroke-width="1.5"><animate attributeName="r" values="6;22" dur="1.6s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;0" dur="1.6s" repeatCount="indefinite"/></circle>` : ""}
+        <path d="M0,-9 L2.6,-2.8 9,-2.8 3.9,1.2 5.8,7.6 0,3.8 -5.8,7.6 -3.9,1.2 -9,-2.8 -2.6,-2.8Z" fill="#ffb23f" stroke="#1a0d06" stroke-width="1.2"/>
+        <text x="-12" y="4" text-anchor="end" fill="#f2efe8" font-family="Barlow, sans-serif" font-size="12.5" paint-order="stroke" stroke="#121212" stroke-width="3">${pl.name}</text></g>`;
+    } else {
+      h += `<g transform="translate(${x},${y})"><circle r="3.2" fill="#f2efe8" stroke="#121212" stroke-width="1.2"/><text x="7" y="4" fill="#f2efe8" font-family="Barlow, sans-serif" font-size="12.5" paint-order="stroke" stroke="#121212" stroke-width="3">${pl.name}</text></g>`;
+    }
+  }
+  // scale bar: 20 km
+  const px20 = 20000 / D.context.res * view.s, r = mapEl.getBoundingClientRect();
+  h += `<g transform="translate(14,${r.height - 44})"><rect width="${px20}" height="5" fill="#f2efe8"/><rect width="${px20 / 2}" height="5" fill="#121212" stroke="#f2efe8"/><text y="-5" fill="#f2efe8" font-family="IBM Plex Mono, monospace" font-size="11">20 km</text></g>`;
+  ov.innerHTML = h;
+}
+
+// ---------------------------------------------------------------- panel
+const fmtDate = h => new Date(T0 + h * 3.6e6).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+const sig3 = v => { const e = Math.pow(10, Math.max(0, Math.floor(Math.log10(Math.abs(v) || 1)) - 2)); return Math.round(v / e) * e; };
+function areaAt(h) { if (h < 0) return 0; const a = D.area_hourly; return a[Math.min(a.length - 1, Math.floor(h))]; }
+function updatePanel() {
+  $("date").firstChild.nodeValue = fmtDate(t);
+  const day = Math.floor(t / 24) + 1;
+  $("dayn").textContent = t < 0 ? "before ignition" : day <= 40 ? `· day ${day} of the fire` : `· ${day - 37} days after the fire`;
+  const a = areaAt(t), fin = D.area_hourly[D.area_hourly.length - 1];
+  $("area").innerHTML = `${sig3(a).toLocaleString("en")} <small>km²</small>`;
+  $("acres").textContent = sig3(a * 247.105).toLocaleString("en");
+  $("pct").textContent = `${Math.round(100 * a / fin)}%`;
+  let c = "—"; for (const [h, v] of CONTAIN) if (t >= h) c = v; $("cont").textContent = c;
+  const items = $("events").children; let cur = -1;
+  EVENTS.forEach((e, k) => { if (t >= e[0]) cur = k; });
+  [...items].forEach((li, k) => { li.className = k === cur ? "now" : k < cur ? "past" : ""; });
+  $("time").value = Math.round(toS(t) * 1000);
+  drawChartCursor();
+}
+function buildEvents() {
+  $("events").innerHTML = EVENTS.map(e => `<li><span class="when">${new Date(T0 + e[0] * 3.6e6).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })}</span><span>${e[1]} <span class="src">· ${e[2]}</span></span></li>`).join("");
+  [...$("events").children].forEach((li, k) => li.addEventListener("click", () => { t = EVENTS[k][0] + 0.01; pause(); updatePanel(); draw(); }));
+}
+let chartX, chartY;
+function buildChart() {
+  const a = D.area_hourly, n = a.length, fin = a[n - 1], W = 300, Hh = 92, top = 8, bot = 16;
+  const xmax = H(2026,8,28);
+  chartX = h => 4 + (W - 8) * Math.max(0, Math.min(1, (h - TSTART) / (xmax - TSTART)));
+  chartY = v => top + (Hh - top - bot) * (1 - v / fin);
+  let d = `M${chartX(TSTART)},${chartY(0)} L${chartX(0)},${chartY(0)}`;
+  for (let h = 0; h < Math.min(n, xmax); h += 3) d += ` L${chartX(h).toFixed(1)},${chartY(a[h]).toFixed(1)}`;
+  d += ` L${chartX(xmax)},${chartY(fin)}`;
+  const g = `<line x1="4" x2="${W - 4}" y1="${chartY(fin)}" y2="${chartY(fin)}" stroke="#34312d"/><line x1="4" x2="${W - 4}" y1="${chartY(0)}" y2="${chartY(0)}" stroke="#4a4640"/>`;
+  const lab = [[0, "23 Jul"], [H(2026,8,1), "1 Aug"], [H(2026,8,10), "10 Aug"], [H(2026,8,20), "20 Aug"]].map(([h, s]) => `<text x="${chartX(h)}" y="${Hh - 3}" text-anchor="middle">${s}</text>`).join("");
+  $("chart").innerHTML = g + `<path d="${d}" fill="none" stroke="#eb6834" stroke-width="2"/>` + `<path id="cfill" d="" fill="#eb6834" fill-opacity=".22"/>` +
+    `<text x="${W - 4}" y="${chartY(fin) - 3}" text-anchor="end">${Math.round(fin).toLocaleString("en")} km²</text>` + lab + `<line id="ccur" y1="${top}" y2="${Hh - bot}" stroke="#ffb23f" stroke-width="1.5"/><circle id="cdot" r="3.5" fill="#ffb23f"/>`;
+}
+function drawChartCursor() {
+  const x = chartX(Math.min(t, H(2026,8,28))), y = chartY(areaAt(t));
+  const c = $("ccur"); if (!c) return;
+  c.setAttribute("x1", x); c.setAttribute("x2", x); $("cdot").setAttribute("cx", x); $("cdot").setAttribute("cy", y);
+}
+function buildTicks() {
+  $("ticklabels").innerHTML = TICKS.map(([h, s]) => `<span style="left:${(toS(h) * 100).toFixed(2)}%">${s}</span>`).join("");
+  const tr = $("track");
+  EVENTS.forEach(e => { const d = document.createElement("div"); d.className = "tick"; d.style.left = `calc(${(toS(e[0]) * 100).toFixed(2)}% - 1px)`; tr.appendChild(d); });
+  for (const [s, txt] of [[0.0, "The fire"], [SPLIT + 0.005, "After the fire"]]) { const d = document.createElement("div"); d.className = "phase"; d.style.left = `${s * 100}%`; d.textContent = txt; tr.appendChild(d); }
+}
+
+// ---------------------------------------------------------------- playback
+let last = 0;
+function frame(now) {
+  if (!playing) return;
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  const rate = (t < FIRE_END ? 16 : 70) * speed;     // simulated hours per second
+  t += rate * dt;
+  if (t >= TEND) { t = TEND; pause(); }
+  updatePanel(); draw();
+  if (playing) requestAnimationFrame(frame);
+}
+function play() { if (t >= TEND) t = TSTART; playing = true; $("playicon").setAttribute("d", "M3 2h3.5v12H3zM9.5 2H13v12H9.5z"); $("play").setAttribute("aria-label", "Pause"); last = performance.now(); requestAnimationFrame(frame); }
+function pause() { playing = false; $("playicon").setAttribute("d", "M3 2l11 6-11 6z"); $("play").setAttribute("aria-label", "Play"); }
+
+// ---------------------------------------------------------------- interaction
+$("play").addEventListener("click", () => playing ? pause() : play());
+$("time").addEventListener("input", e => { pause(); t = fromS(e.target.value / 1000); updatePanel(); draw(); });
+$("speed").addEventListener("change", e => speed = +e.target.value);
+$("perim").addEventListener("change", draw);
+$("m-tc").addEventListener("click", () => setMode("tc"));
+$("m-fc").addEventListener("click", () => setMode("fc"));
+$("m-rad").addEventListener("click", () => setMode("rad"));
+function zoomAt(k, cx, cy) {
+  const r = mapEl.getBoundingClientRect(); cx ??= r.width / 2; cy ??= r.height / 2;
+  const wx = view.x + cx / view.s, wy = view.y + cy / view.s;
+  view.s = Math.max(0.25, Math.min(40, view.s * k)); view.x = wx - cx / view.s; view.y = wy - cy / view.s; draw();
+}
+$("zin").addEventListener("click", () => zoomAt(1.4)); $("zout").addEventListener("click", () => zoomAt(1 / 1.4));
+$("zfit").addEventListener("click", () => { fit(); draw(); });
+mapEl.addEventListener("wheel", e => { e.preventDefault(); const r = mapEl.getBoundingClientRect(); zoomAt(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+const ptrs = new Map(); let pinch = 0;
+mapEl.addEventListener("pointerdown", e => { if (e.target.closest("button")) return; mapEl.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]); mapEl.classList.add("dragging"); });
+mapEl.addEventListener("pointermove", e => {
+  if (!ptrs.has(e.pointerId)) return;
+  const [px, py] = ptrs.get(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+  if (ptrs.size === 2) {
+    const [a, b] = [...ptrs.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), r = mapEl.getBoundingClientRect();
+    if (pinch) zoomAt(d / pinch, (a[0] + b[0]) / 2 - r.left, (a[1] + b[1]) / 2 - r.top); pinch = d; return;
+  }
+  view.x -= (e.clientX - px) / view.s; view.y -= (e.clientY - py) / view.s; draw();
+});
+const up = e => { ptrs.delete(e.pointerId); pinch = 0; if (!ptrs.size) mapEl.classList.remove("dragging"); };
+mapEl.addEventListener("pointerup", up); mapEl.addEventListener("pointercancel", up);
+document.addEventListener("keydown", e => { if (e.code === "Space" && e.target === document.body) { e.preventDefault(); playing ? pause() : play(); } });
+new ResizeObserver(resize).observe(mapEl);
+
+// ---------------------------------------------------------------- boot
+(async () => {
+  try {
+    D = await (await fetch("data.json")).json();
+    buildEvents(); buildChart(); buildTicks();
+    const [ctx, arr] = await Promise.all([tex("context.jpg"), tex("arrival.png", true)]);
+    TX.ctx = ctx; TX.arr = arr;
+    if (D.detail.W > MAXTEX || D.detail.H > MAXTEX) $("mapnote").textContent = "This device's graphics chip is too small for the 30 m fire map.";
+    await setMode("tc");
+    resize(); fit(); t = H(2026, 8, 30); updatePanel(); draw();       // open on the finished scar
+    $("loading").style.opacity = 0; setTimeout(() => $("loading").hidden = true, 500);
+  } catch (err) { $("loading").textContent = "Could not load the map data: " + err.message; }
+})();
+})();
+</script>

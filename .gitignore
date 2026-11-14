@@ -1,3 +1,28 @@
+# Credentials and private notes: never commit
+research/Artifacts/
+*netrc*
+.env*
+
+# Raw satellite downloads (several GB; re-fetch with the scripts)
+**/raw/
+*.npz
+*.npy
+*.pkl
+*.h5
+*.nc4
+*.tif
+
+# Not ours to redistribute
+Participant Guide*.pdf
+
+# Python / OS clutter
+__pycache__/
+*.pyc
+*.log
+.DS_Store
+Thumbs.db
+
+# Web app (Vite) and large local material
 node_modules
 dist
 .DS_Store

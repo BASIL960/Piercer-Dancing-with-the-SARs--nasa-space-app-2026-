@@ -1,0 +1,109 @@
+{
+ "perimeter_km2_60m": 2325.5,
+ "valid_in_perimeter": 1.0,
+ "burned_t0.075": {
+  "km2": 1953,
+  "share_of_perimeter": 84.0
+ },
+ "burned_t0.1": {
+  "km2": 1811,
+  "share_of_perimeter": 77.9
+ },
+ "burned_t0.125": {
+  "km2": 1609,
+  "share_of_perimeter": 69.2
+ },
+ "severity_share_of_burned": {
+  "low": 71.0,
+  "moderate_low": 21.7,
+  "moderate_high": 6.5,
+  "high": 0.7
+ },
+ "control_flagged_pct": 3.05,
+ "series": [
+  {
+   "date": "2026-07-24",
+   "burned_km2": 133,
+   "valid_in_perimeter": 1.0,
+   "share_of_final": 7.3
+  },
+  {
+   "date": "2026-07-29",
+   "burned_km2": 725,
+   "valid_in_perimeter": 0.629,
+   "share_of_final": 40.0
+  },
+  {
+   "date": "2026-08-03",
+   "burned_km2": 1169,
+   "valid_in_perimeter": 0.905,
+   "share_of_final": 64.6
+  },
+  {
+   "date": "2026-08-10",
+   "burned_km2": 1706,
+   "valid_in_perimeter": 1.0,
+   "share_of_final": 94.2
+  },
+  {
+   "date": "2026-08-12",
+   "burned_km2": 1299,
+   "valid_in_perimeter": 0.903,
+   "share_of_final": 71.7
+  },
+  {
+   "date": "2026-08-20",
+   "burned_km2": 1644,
+   "valid_in_perimeter": 0.933,
+   "share_of_final": 90.8
+  },
+  {
+   "date": "2026-08-23",
+   "burned_km2": 1785,
+   "valid_in_perimeter": 0.997,
+   "share_of_final": 98.6
+  },
+  {
+   "date": "2026-08-30",
+   "burned_km2": 1824,
+   "valid_in_perimeter": 1.0,
+   "share_of_final": 100.7
+  },
+  {
+   "date": "2026-09-17",
+   "burned_km2": 1572,
+   "valid_in_perimeter": 0.997,
+   "share_of_final": 86.8
+  },
+  {
+   "date": "2026-09-22",
+   "burned_km2": 1314,
+   "valid_in_perimeter": 0.799,
+   "share_of_final": 72.5
+  },
+  {
+   "date": "2026-09-29",
+   "burned_km2": 1343,
+   "valid_in_perimeter": 0.877,
+   "share_of_final": 74.1
+  },
+  {
+   "date": "2026-10-07",
+   "burned_km2": 1453,
+   "valid_in_perimeter": 0.99,
+   "share_of_final": 80.3
+  },
+  {
+   "date": "2026-10-17",
+   "burned_km2": 872,
+   "valid_in_perimeter": 0.625,
+   "share_of_final": 48.2
+  },
+  {
+   "date": "2026-10-24",
+   "burned_km2": 812,
+   "valid_in_perimeter": 0.598,
+   "share_of_final": 44.8
+  }
+ ]
+}
