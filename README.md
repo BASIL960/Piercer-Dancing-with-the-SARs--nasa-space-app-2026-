@@ -13,7 +13,8 @@
 </p>
 
 <p align="center"><b>In the summer of 2026, the ground changed faster than cameras could follow.<br>Piercer follows NASA-ISRO's NISAR radar through three of those changes, and lets you check every finding against the evidence.</b></p>
-
+## ✦ Video
+https://drive.google.com/drive/folders/1bCURsi4LL5rAOWawFf_ip_6gg8VdRXkE?usp=sharing
 ## ✦ Summary
 
 **Piercer** is an interactive 3D documentary for the NASA Space Apps Challenge 2026, challenge *Dancing with the SARs*. Clouds, smoke and night hide the ground from ordinary satellite cameras exactly when it changes most. Radar sees through all three. On a 3D globe, Piercer flies to three places that changed in 2026 at three speeds: a flood surge from an ice-and-rock collapse in Nepal in minutes, a wildfire in Oregon over weeks, and the rainy season in Jazan, Saudi Arabia. Each story plays on a timeline, shows what NISAR's radar recorded beside what the photos could (or could not) show, and labels every number as measured, derived, reported or estimated, so anyone can check the finding against the data.
