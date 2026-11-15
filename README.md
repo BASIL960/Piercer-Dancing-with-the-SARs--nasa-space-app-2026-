@@ -1,26 +1,48 @@
-# Piercer
+<p align="center">
+  <img src="docs/readme/banner.svg" alt="Piercer: Dancing with the SARs. NASA Space Apps Challenge 2026, Saudi Arabia, 14–15 November 2026" width="100%">
+</p>
 
-**In the summer of 2026, the ground changed faster than cameras could follow. Piercer follows NASA-ISRO's NISAR radar through three of those changes, and lets you check every finding against the evidence.**
+<p align="center">
+  <a href="https://www.spaceappschallenge.org/"><img alt="NASA Space Apps Challenge 2026" src="https://img.shields.io/badge/NASA_Space_Apps-2026_·_Saudi_Arabia-d8a844?style=for-the-badge&labelColor=0b132a"></a>
+  <img alt="Challenge: Dancing with the SARs" src="https://img.shields.io/badge/Challenge-Dancing_with_the_SARs-c6dc52?style=for-the-badge&labelColor=0b132a">
+  <br>
+  <img alt="Data: NISAR, HLS, GPM IMERG, VIIRS" src="https://img.shields.io/badge/NASA_data-NISAR_·_HLS_·_IMERG_·_VIIRS-7fe6ff?style=flat-square&labelColor=0b132a">
+  <img alt="three.js" src="https://img.shields.io/badge/three.js-0b132a?style=flat-square&logo=threedotjs&logoColor=white">
+  <img alt="React" src="https://img.shields.io/badge/React_19-0b132a?style=flat-square&logo=react&logoColor=61dafb">
+  <img alt="Vite" src="https://img.shields.io/badge/Vite-0b132a?style=flat-square&logo=vite&logoColor=ffd62e">
+</p>
 
-An interactive 3D documentary for the NASA Space Apps Challenge 2026, challenge *Dancing with the SARs*.
+<p align="center"><b>In the summer of 2026, the ground changed faster than cameras could follow.<br>Piercer follows NASA-ISRO's NISAR radar through three of those changes, and lets you check every finding against the evidence.</b></p>
+
+## ✦ Summary
+
+**Piercer** is an interactive 3D documentary for the NASA Space Apps Challenge 2026, challenge *Dancing with the SARs*. Clouds, smoke and night hide the ground from ordinary satellite cameras exactly when it changes most. Radar sees through all three. On a 3D globe, Piercer flies to three places that changed in 2026 at three speeds: a flood surge from an ice-and-rock collapse in Nepal in minutes, a wildfire in Oregon over weeks, and the rainy season in Jazan, Saudi Arabia. Each story plays on a timeline, shows what NISAR's radar recorded beside what the photos could (or could not) show, and labels every number as measured, derived, reported or estimated, so anyone can check the finding against the data.
 
 *Piercer*: radar pierces the cloud, smoke and darkness that hide the ground from ordinary cameras.
 
-## The journey
+## ✦ The journey
 
 Three places, three speeds of change, one season. Each place earns its chapter with a question, an observation you can inspect, an interaction and a reason it matters.
+
+<table>
+  <tr>
+    <td align="center" width="33%"><img src="public/story/nepal-radar.webp" alt="Bhote Koshi valley, Nepal, with the flood route" height="260"><br><sub><b>MINUTES</b> · Bhote Koshi, Nepal</sub></td>
+    <td align="center" width="33%"><img src="public/story/oregon-run.webp" alt="Oregon's Fire burn scar in false colour" height="260"><br><sub><b>WEEKS</b> · Oregon's Fire, USA</sub></td>
+    <td align="center" width="33%"><img src="public/story/jazan-wet.webp" alt="Jazan wet ground seen by radar" height="260"><br><sub><b>A SEASON</b> · Jazan, Saudi Arabia</sub></td>
+  </tr>
+</table>
 
 | | Place | The change | What radar did | Key evidence |
 |---|---|---|---|---|
 | **Minutes** | Bhote Koshi, Rasuwa, Nepal | An ice-and-rock collapse sent a surge 59.5 km down the valley on 26 Aug 2026 | **Through the cloud.** Five days later, 38% (31–46%) of the flood corridor had changed against 7.3% of the slopes beside it, five weeks before the first clear photo | NISAR GUNW coherence pairs; HLS stripped ground 11.7 km² (11.0–12.6) |
-| **Weeks** | Big Grass Fire, Oregon–Idaho | Lightning on 23 Jul; 1,810 km² (1,610–1,950) burned by late August | **Beyond the smoke.** In October the photos look green again, but the radar shrub signal on the hottest-burned ground is at 51% of its pre-fire level (81% outside) | NISAR GCOV HV; HLS dNBR; VIIRS fire days; NIFC perimeter |
+| **Weeks** | Oregon's Fire (NIFC: Big Grass Fire), Oregon–Idaho | Lightning on 23 Jul; 1,810 km² (1,610–1,950) burned by late August | **Beyond the smoke.** In October the photos look green again, but the radar shrub signal on the hottest-burned ground is at 51% of its pre-fire level (81% outside) | NISAR GCOV HV; HLS dNBR; VIIRS fire days; NIFC perimeter |
 | **A season** | Jazan, Saudi Arabia | Storms off the Sarawat mountains; the coastal plain greens from mid-September, the coast last | **Where the green came.** Ground the dawn radar kept flagging through the rains was 2.2–2.9× as likely to be green by November (a match in place, not a lead time) | NISAR GUNW and GCOV (dusk and dawn passes); IMERG rain; HLS green-up dates |
 
 The finale puts all three on one axis (June–November 2026), with every NISAR pass and the gap with no NISAR data (27 July – 10 August) that the three places share.
 
 ### How it works
 
-- **Opening** explains the idea in three beats, then flies to the globe.
+- **The landing page** shows a turning Earth and explains the idea and how NISAR's radar works as you scroll; the button or the end of the page opens the globe.
 - **The globe** shows the three places with cards that stay beside them as it turns. Hover or focus a card and the globe turns to face it.
 - **Each place** has six chapters. The camera flies to a viewpoint chosen for the evidence (along the gorge, over the fire's origin, from the Red Sea toward the escarpment). Time plays where the story needs it: the surge minute by minute, the fire day by day, the season week by week.
 - **Explore freely at any time:**
@@ -45,7 +67,7 @@ The finale puts all three on one axis (June–November 2026), with every NISAR p
 - **Reduced motion:** cuts replace flights, guided playback jumps to its end state, and the clouds stop moving.
 - **Phones:** the 3D view on top, a reading sheet below.
 
-## Run it
+## ✦ Run it
 
 Needs Node 20 or newer.
 
@@ -69,7 +91,7 @@ npm run data       # fetches the team's research repo and the globe, builds publ
 | `npm run build` / `npm run preview` | Type-check and build the static site into `dist/`, then serve it |
 | `npm run check` | Drives the running dev server through the whole journey in headless Chrome (needs Google Chrome) and saves screenshots |
 
-## Data
+## ✦ Data (NASA datasets used)
 
 Piercer does not measure anything new. It builds on the team's research (`research/` in [the project repository](https://github.com/BASIL960/Piercer-Dancing-with-the-SARs--nasa-space-app-2026-)). That research follows one data standard for all three places (`research/DATA_STANDARD.md`) and lists every number with its rule, control and source (`research/CLAIMS.md`). The build script copies those standardized results (`research/std_*.json`) into the site data, so the copy reads its numbers from data rather than typing them in.
 
@@ -94,11 +116,11 @@ Every statement on screen carries a label:
 
 NASA does not endorse this project.
 
-## Placing the research on the globe
+## ✦ Placing the research on the globe
 
 The research layers are north-up UTM grids, stored in "context pixel" coordinates, without their grid origin. `scripts/stories/georef.mjs` recovers each origin from points whose latitude and longitude are known: the ignition point, the flood source, and every IMERG rain-cell pin. Terrain is then sampled from the Copernicus DEM onto the same grids, and the browser drapes each layer on the sphere through an exact UTM-to-latitude conversion (`src/engine/utm.ts`, within 3 mm of proj4).
 
-## What was checked
+## ✦ What was checked
 
 | Check | Result |
 |---|---|
@@ -110,7 +132,7 @@ The research layers are north-up UTM grids, stored in "context pixel" coordinate
 
 Not tested: Safari, Firefox, real phones and tablets, screen readers.
 
-## Limitations
+## ✦ Limitations
 
 - **Provisional products.** NISAR products are provisional; validated versions start on 21 October 2026. IMERG is the near-real-time Late run.
 - **NISAR data gap.** There is no NISAR data from 27 July to 10 August 2026, so the Oregon radar pair across the fire spans 36 days.
@@ -121,7 +143,7 @@ Not tested: Safari, Firefox, real phones and tablets, screen readers.
 - **Reported figures.** Deaths, acres, containment and alert texts are reported and were not recomputed.
 - **Data size.** About 74 MB of imagery in total, loaded place by place.
 
-## Project layout
+## ✦ Project layout
 
 ```
 scripts/stories/
@@ -141,8 +163,28 @@ src/
   ui/                  React: intro, globe hub, reading panels, evidence charts, timeline, finale, sources
 ```
 
-## Built with
+## ✦ Team
+
+**Team Lūx Stellārum** · NASA Space Apps 2026, Riyadh
+
+| Member | Role |
+|---|---|
+| Bassam Albulaihi | AI Engineer (lead) |
+| Basel Alhumaily | Project Manager |
+| Abdulqader Alfawzan | Analyst |
+
+## ✦ Built with
 
 three.js, React, Vite, zustand, proj4, geotiff.js and sharp. Typefaces: Reem Kufi and Readex Pro (SIL Open Font License).
 
 **Use of AI:** code, data pipeline and interface text were written with Claude, an AI assistant made by Anthropic, working from the team's direction, research and reference material.
+
+---
+
+<p align="center">
+  <img src="docs/readme/spaceapps-saudi.png" alt="NASA Space Apps Saudi Arabia" height="72">
+  &nbsp;&nbsp;&nbsp;
+  <img src="public/brand/piercer-mark-green.svg" alt="Piercer" height="72">
+  <br>
+  <sub>Made for the <a href="https://www.spaceappschallenge.org/">NASA International Space Apps Challenge</a> 2026 · Saudi Arabia · 14–15 November 2026</sub>
+</p>
