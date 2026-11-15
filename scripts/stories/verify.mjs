@@ -65,6 +65,20 @@ const check = (ok, msg) => { console.log(`${ok ? "ok  " : "FAIL"} ${msg}`); if (
     "Nepal: only the pair spanning the flood separates corridor from slopes (copy: 'In every pair before the flood ... similar amounts')");
   const o = site("oregon"), hv = o.std.hv["20261020"];
   check(hv.hot.pct_of_pre === 51 && hv.control.pct_of_pre === 81, `Oregon: HV on 20 Oct ${hv.hot.pct_of_pre}% (hottest) vs ${hv.control.pct_of_pre}% (outside)`);
+  // the burn series is one photo per date: every reading below an earlier one must be a partly hidden date
+  // (the chart note says the dips are single-photo limits, not regrowth, and the text quotes full views only)
+  {
+    let best = 0; const dips = [];
+    for (const s of o.std.series) { if (s.share_of_final < best - 1) dips.push(s); best = Math.max(best, s.share_of_final); }
+    const quoted = ["2026-08-10", "2026-08-23"].map((k) => o.std.series.find((s) => s.date === k));
+    check(dips.length > 0 && dips.every((s) => s.valid_in_perimeter < 0.95) && quoted.every((s) => s.valid_in_perimeter >= 0.95),
+      `Oregon: burn-series dips only on partly hidden photos (${dips.map((s) => `${s.date} ${s.share_of_final}%, ${Math.round(s.valid_in_perimeter * 100)}% visible`).join("; ")}); quoted dates are full views`);
+  }
+  const acres = Math.round(o.std.perimeterKm2 * 247.105);
+  check(Math.abs(acres - 575163) / 575163 < 0.001, `Oregon: perimeter ${o.std.perimeterKm2} km² = ${acres.toLocaleString("en-GB")} acres (copy: 575,163 acres, NIFC)`);
+  // typed values in the Jazan closing chapter and the xcheck ratio range in CLAIMS.md / README
+  const r = s.std.xcheck.ratios;
+  check(Math.min(...r).toFixed(1) === "2.2" && Math.max(...r).toFixed(1) === "2.9", `Jazan: flagged-vs-rest ratios ${Math.min(...r).toFixed(2)}–${Math.max(...r).toFixed(2)} (docs: 2.2–2.9×)`);
 }
 // 3. files
 for (const id of ["nepal", "oregon", "jazan"]) {

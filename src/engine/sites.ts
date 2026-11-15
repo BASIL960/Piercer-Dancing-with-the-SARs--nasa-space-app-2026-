@@ -128,10 +128,20 @@ export class FireScene extends SiteScene {
     });
   }
   private url(f: string) { return siteUrl("oregon", f); }
-  /** The fire timing and the true-colour set first; other sets load when a chapter offers them. */
-  preload(sets: FireSet[] = ["tc"]) {
+  /**
+   * The fire timing, then for each set a chapter offers only the images it shows at story time t: the pre-fire
+   * image and the latest after-image. (Each image is 60 MB on the GPU; warming every date of every offered set
+   * came to ~900 MB, over the texture budget, so images were evicted and fetched again every half second.)
+   * The set on screen loads the image it is blending towards on demand.
+   */
+  preload(sets: FireSet[] = ["tc"], t = Date.UTC(2026, 7, 30)) {
     void this.tex.load(this.url("arrival.png"), { data: true, pinned: true });
-    for (const s of sets) { void this.tex.load(this.url(OREGON_AFTER[s].pre)); for (const [a] of OREGON_AFTER[s].after) void this.tex.load(this.url(a)); }
+    for (const s of sets) {
+      const S = OREGON_AFTER[s];
+      let i = 0; while (i < S.after.length - 1 && t > S.after[i + 1][1]) i++;
+      void this.tex.load(this.url(S.pre)).catch(() => undefined);
+      void this.tex.load(this.url(S.after[i][0])).catch(() => undefined);
+    }
   }
   private bind(k: 0 | 1, set: FireSet, t: number) {
     const u = this.detMat.uniforms, S = OREGON_AFTER[set], at = S.after;
@@ -154,7 +164,7 @@ export class FireScene extends SiteScene {
     const want = (["tc", "fc", "rad"].includes(f.layer) ? f.layer : "tc") as FireSet;
     if (want !== this.sets[1]) { this.sets = [this.sets[1], want]; this.setMix = 0; }
     // warm the sets this chapter offers, so a layer switch is a cross-fade rather than a wait
-    if (f.chapter?.layers && this.tex.frame % 30 === 0) this.preload(f.chapter.layers.filter((l) => l in OREGON_AFTER) as FireSet[]);
+    if (f.chapter?.layers && this.tex.frame % 30 === 0) this.preload(f.chapter.layers.filter((l) => l in OREGON_AFTER) as FireSet[], f.t);
     this.setMix = Math.min(1, this.setMix + f.dt / (f.reduced ? 0.01 : 0.7));
     const ready1 = this.bind(1, this.sets[1], f.t);
     this.bind(0, this.sets[0], f.t);
@@ -236,11 +246,14 @@ export class FloodScene extends SiteScene {
 // ---------------------------------------------------------------- Jazan rainy season
 const MODES: Record<string, number> = { change: 0, wet: 1, photo: 2, season: 3, freq: 4 };
 interface SeqItem { s: number; img: string }
+/** Which frame of a sequence is on screen, fading from the previous one over real (not story) seconds. */
+interface Shown { a: SeqItem | null; b: SeqItem | null; mix: number }
 export class RainScene extends SiteScene {
   private seq: Record<string, SeqItem[]> = {};
   private rainSeq: { s: number; key: string; grid: number[][]; perDay: boolean }[] = [];
   private rainTex = new Map<string, THREE.DataTexture>();
   private modes = [3, 3]; private modeMix = 1; private rainOn = 1;
+  private shown: Record<string, Shown> = {};
   // set from the base constructor (rainUniforms), so it must not be re-initialised as a class field
   private declare rainU: Record<string, THREE.IUniform>;
   constructor(readonly rain: JazanData, tex: Textures, h: { coarse: Heights; fine: Heights }) {
@@ -276,17 +289,42 @@ export class RainScene extends SiteScene {
     return this.rainU;
   }
   private url(f: string) { return siteUrl("jazan", f); }
+  /**
+   * The season layers, then only the frames each chapter opens on. Every frame of the record (~110 images,
+   * ~800 MB on the GPU) no longer fits the texture budget; the rest load as time reaches them, with the next
+   * frame of the playing sequence fetched ahead (bindSeq, and three photos ahead in the photo layer).
+   */
   preload() {
-    for (const f of ["season_a.png", "season_b.png"]) void this.tex.load(this.url(f), { data: true, pinned: true });
-    for (const f of ["radar/radar_base.jpg", "hls/hls_2026-06-21.webp", "radar/freq_dawn.jpg", "radar/freq_dusk.jpg"]) void this.tex.load(this.url(f), { pinned: true });
-    for (const s of Object.values(this.seq)) for (const it of s) void this.tex.load(this.url(it.img));
+    for (const f of ["season_a.png", "season_b.png"]) void this.tex.load(this.url(f), { data: true, pinned: true }).catch(() => undefined);
+    for (const f of ["radar/radar_base.jpg", "hls/hls_2026-06-21.webp", "radar/freq_dawn.jpg", "radar/freq_dusk.jpg"]) void this.tex.load(this.url(f), { pinned: true }).catch(() => undefined);
+    for (const ch of PLACES.jazan.chapters) {
+      const tt = (ch.t - JAZAN_T0) / DAY;
+      const keys = [...(ch.layers ?? [ch.layer])].flatMap((l) => l === "change" ? ["coh_dusk", "coh_dawn"] : l === "wet" || l === "season" ? ["bsc_dusk", "bsc_dawn"] : l === "photo" ? ["opt"] : []);
+      for (const k of keys) { const it = this.latest(this.seq[k], tt); if (it) void this.tex.load(this.url(it.img)).catch(() => undefined); }
+    }
   }
-  private at(seq: SeqItem[], tt: number, xf = 1) {
+  /** The latest frame acquired at or before story time tt. */
+  private latest(seq: SeqItem[], tt: number) {
     let k = -1;
     for (let i = 0; i < seq.length; i++) if (seq[i].s <= tt) k = i; else break;
-    if (k < 0) return null;
-    const cur = seq[k], prev = seq[k - 1] ?? cur;
-    return { a: prev, b: cur, m: k === 0 ? 1 : Math.min(1, (tt - cur.s) / Math.min(xf, cur.s - prev.s)) };
+    return k < 0 ? null : seq[k];
+  }
+  /**
+   * The frame on screen for a sequence. A pass or photo is shown in full from the moment it was acquired: the
+   * change from the previous frame is a short fade in real time (0.6 s), so a paused map always shows the latest
+   * acquisition, matching the readout and the text. (It used to fade over a whole story-day, so a chapter that
+   * opened 21 minutes after a pass showed 98% of the pass before.) Frames that have not loaded are held back.
+   */
+  private frameOf(key: string, seq: SeqItem[], tt: number, dt: number, reduced: boolean): Shown {
+    const s = (this.shown[key] ??= { a: null, b: null, mix: 1 });
+    const want = this.latest(seq, tt);
+    if (want !== s.b && (!want || this.tex.get(this.url(want.img)))) {
+      // a jump of more than one frame (scrubbing, a new chapter) cuts instead of fading through stale imagery
+      const step = want && s.b ? Math.abs(seq.indexOf(want) - seq.indexOf(s.b)) : 2;
+      Object.assign(s, { a: step === 1 ? s.b : want, b: want, mix: step === 1 ? 0 : 1 });
+    }
+    s.mix = Math.min(1, s.mix + dt / (reduced ? 0.01 : 0.6));
+    return s;
   }
   private rainTexOf(key: string, grid: number[][], perDay: boolean) {
     let t = this.rainTex.get(key);
@@ -304,16 +342,18 @@ export class RainScene extends SiteScene {
     return t;
   }
   /** Bind a radar sequence pair, preloading the next frame. Returns [tex0, tex1, mix, has]. */
-  private bindSeq(seq: SeqItem[], tt: number): [THREE.Texture, THREE.Texture, number, number] {
-    const f = this.at(seq, tt);
-    const i = f ? seq.indexOf(f.b) : -1;
+  private bindSeq(key: string, f: Frame, tt: number): [THREE.Texture, THREE.Texture, number, number] {
+    const seq = this.seq[key];
+    const s = this.frameOf(key, seq, tt, f.dt, f.reduced);
+    const i = s.b ? seq.indexOf(s.b) : -1;
     if (seq[i + 1]) this.tex.get(this.url(seq[i + 1].img));
-    if (!f) return [this.tex.blank, this.tex.blank, 1, 0];
-    const ta = this.tex.get(this.url(f.a.img)), tb = this.tex.get(this.url(f.b.img));
-    if (tb) return [ta ?? tb, tb, ta ? f.m : 1, 1];
-    if (ta) return [ta, ta, 1, 1];
-    return [this.tex.blank, this.tex.blank, 1, 0];
+    if (!s.b) return [this.tex.blank, this.tex.blank, 1, 0];
+    const tb = this.tex.get(this.url(s.b.img)), ta = s.a ? this.tex.get(this.url(s.a.img)) : undefined;
+    if (!tb) return [this.tex.blank, this.tex.blank, 1, 0];
+    return [ta ?? tb, tb, ta ? s.mix : 1, 1];
   }
+  /** The acquisition the map is showing for a radar sequence, for tests and the readout. */
+  shownFrame(key: string) { return this.shown[key]?.b?.img ?? null; }
   update(f: Frame) {
     const shown = super.update(f);
     const tt = (f.t - JAZAN_T0) / DAY;
@@ -339,13 +379,14 @@ export class RainScene extends SiteScene {
     const uses = (m: number) => this.modes.includes(m) && (m === this.modes[1] || this.modeMix < 1);
     const g = (p: string, data = false) => this.tex.get(this.url(p), { data }) ?? this.tex.blank;
     u.tBase.value = g("radar/radar_base.jpg");
-    if (uses(0)) { const [a, b, m, h] = this.bindSeq(this.seq[`coh_${f.pass}`], tt); u.tC0.value = a; u.tC1.value = b; u.uMixC.value = m; u.uHasC.value = h; }
-    if (uses(1) || uses(3)) { const [a, b, m, h] = this.bindSeq(this.seq[`bsc_${f.pass}`], tt); u.tG0.value = a; u.tG1.value = b; u.uMixG.value = m; u.uHasG.value = h; }
+    if (uses(0)) { const [a, b, m, h] = this.bindSeq(`coh_${f.pass}`, f, tt); u.tC0.value = a; u.tC1.value = b; u.uMixC.value = m; u.uHasC.value = h; }
+    if (uses(1) || uses(3)) { const [a, b, m, h] = this.bindSeq(`bsc_${f.pass}`, f, tt); u.tG0.value = a; u.tG1.value = b; u.uMixG.value = m; u.uHasG.value = h; }
     if (uses(2)) {
-      const fr = this.at(this.seq.opt, tt) ?? { a: this.seq.opt[0], b: this.seq.opt[0], m: 1 };
-      const ta = this.tex.get(this.url(fr.a.img)), tb = this.tex.get(this.url(fr.b.img));
-      u.tP0.value = ta ?? tb ?? g("hls/hls_2026-06-21.webp"); u.tP1.value = tb ?? u.tP0.value; u.uMixP.value = tb ? fr.m : 0;
-      const i = this.seq.opt.indexOf(fr.b);
+      // before the first clear photo of the record, the first one stands in
+      const s = this.frameOf("opt", this.seq.opt, Math.max(tt, this.seq.opt[0].s), f.dt, f.reduced);
+      const tb = s.b ? this.tex.get(this.url(s.b.img)) : undefined, ta = s.a ? this.tex.get(this.url(s.a.img)) : undefined;
+      u.tP0.value = ta ?? tb ?? g("hls/hls_2026-06-21.webp"); u.tP1.value = tb ?? u.tP0.value; u.uMixP.value = tb && ta ? s.mix : 1;
+      const i = s.b ? this.seq.opt.indexOf(s.b) : 0;
       for (let n = 1; n <= 3; n++) if (this.seq.opt[i + n]) this.tex.get(this.url(this.seq.opt[i + n].img));
     }
     if (uses(3)) { u.tSA.value = g("season_a.png", true); u.tSB.value = g("season_b.png", true); u.tPJune.value = g("hls/hls_2026-06-21.webp"); }

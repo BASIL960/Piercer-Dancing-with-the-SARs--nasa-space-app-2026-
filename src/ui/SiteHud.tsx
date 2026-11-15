@@ -29,7 +29,7 @@ function Readout({ id, t }: { id: SiteId; t: number }) {
     if (h >= 0) {
       const a = d.areaHourly[Math.min(d.areaHourly.length - 1, Math.floor(h))];
       const day = Math.floor(h / 24) + 1;
-      items.push(day <= 37 ? ["Fire", `day ${day}`, "reported"] : ["After the fire", `${day - 37} days`, "reported"]);
+      items.push(day <= 37 ? ["Fire", `day ${day}`, "reported"] : ["After the fire", `${day - 37} day${day - 37 === 1 ? "" : "s"}`, "reported"]);
       items.push(["Burned so far", `${area(a)} km²`, h >= d.areaHourly.length - 1 ? "derived" : "interpolated"]);
     }
     const cont: [number, string][] = [[Date.UTC(2026, 6, 28), "5%"], [Date.UTC(2026, 7, 10), "41%"], [Date.UTC(2026, 7, 15), "55%"], [Date.UTC(2026, 7, 23), "93%"]];
@@ -53,6 +53,8 @@ function Readout({ id, t }: { id: SiteId; t: number }) {
   );
 }
 
+const FIRE_ONLY = new Set(["Fire front (estimated within each day)", "Burned in the last day"]);
+
 function Layers({ id }: { id: SiteId }) {
   const layer = useStore((s) => s.layer), pass = useStore((s) => s.pass), rain = useStore((s) => s.rain), overlays = useStore((s) => s.overlays);
   const chapter = useStore((s) => s.chapter);
@@ -61,6 +63,10 @@ function Layers({ id }: { id: SiteId }) {
   const info = LAYER_INFO[id];
   const offered = ch.layers ?? [ch.layer];
   const L = info[st.layer] ?? info[ch.layer];
+  // the legend lists only what this chapter draws: no fire-front colours once the fire is switched off,
+  // and the official perimeter when its dashed line is on the map
+  const legend = (L?.legend ?? []).filter(([, txt]) => !(ch.fx?.fire === 0 && FIRE_ONLY.has(txt)) && !(ch.fx?.tint === 0 && txt === "Burned ground (tinted photo)"));
+  if (ch.overlays?.perimeter && st.overlays) legend.push(["perimeter", "Official fire perimeter (NIFC)"]);
   const passes = id === "jazan" && ["change", "wet", "freq", "season"].includes(st.layer);
   return (
     <div className="layers">
@@ -81,12 +87,20 @@ function Layers({ id }: { id: SiteId }) {
       </div>
       {L && (
         <div className="legend">
-          {L.legend.map(([c, txt]) => <p key={txt}><i style={{ background: c }} />{txt}</p>)}
+          {legend.map(([c, txt]) => <p key={txt}><i className={c === "perimeter" ? "dashed" : undefined} style={c === "perimeter" ? undefined : { background: c }} />{txt}</p>)}
           <p className="src-line">{L.src}</p>
         </div>
       )}
     </div>
   );
+}
+
+/** Says so when imagery for this place failed to load, instead of silently showing another layer. */
+function Missing({ id }: { id: SiteId }) {
+  const missing = useStore((s) => s.missing);
+  const n = missing.filter((u) => u.includes(`/sites/${id}/`)).length;
+  if (!n) return null;
+  return <p className="missing" role="status">{n === 1 ? "One image" : `${n} images`} for this place could not be loaded, so part of a layer may be missing or show an earlier date. Reloading the page may help.</p>;
 }
 
 function Relief({ id }: { id: SiteId }) {
@@ -146,8 +160,9 @@ export function SiteHud() {
             ))}
           </ol>
           <div className="steps">
-            <button className="quiet" onClick={st.prev}>Back</button>
-            <button className="primary" onClick={st.next}>
+            {/* after a mouse click the button lets go of focus, so Space then plays and pauses instead of pressing it again */}
+            <button className="quiet" onClick={(e) => { st.prev(); if (e.detail) e.currentTarget.blur(); }}>Back</button>
+            <button className="primary" onClick={(e) => { st.next(); if (e.detail) e.currentTarget.blur(); }}>
               {isLast ? (nextSite ? `Next: ${PLACES[nextSite].speed.toLowerCase()}, ${PLACES[nextSite].name}` : "The whole season") : `Next: ${COPY[siteId][place.chapters[chapter + 1].id].title}`}
             </button>
           </div>
@@ -156,6 +171,7 @@ export function SiteHud() {
 
       <aside className="evidence" aria-label="Evidence">
         <Layers id={siteId} />
+        <Missing id={siteId} />
         <Readout id={siteId} t={t} />
         {copy.evidence && <div className="figure" key={`${siteId}-${chapter}`}>{copy.evidence(ctx)}</div>}
       </aside>

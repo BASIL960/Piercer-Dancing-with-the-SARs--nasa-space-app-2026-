@@ -14,7 +14,7 @@ Three places, three speeds of change, one season. Each place earns its chapter w
 |---|---|---|---|---|
 | **Minutes** | Bhote Koshi, Rasuwa, Nepal | An ice-and-rock collapse sent a surge 59.5 km down the valley on 26 Aug 2026 | **Through the cloud.** Five days later, 38% (31–46%) of the flood corridor had changed against 7.3% of the slopes beside it, five weeks before the first clear photo | NISAR GUNW coherence pairs; HLS stripped ground 11.7 km² (11.0–12.6) |
 | **Weeks** | Big Grass Fire, Oregon–Idaho | Lightning on 23 Jul; 1,810 km² (1,610–1,950) burned by late August | **Beyond the smoke.** In October the photos look green again, but the radar shrub signal on the hottest-burned ground is at 51% of its pre-fire level (81% outside) | NISAR GCOV HV; HLS dNBR; VIIRS fire days; NIFC perimeter |
-| **A season** | Jazan, Saudi Arabia | Storms off the Sarawat mountains; the coastal plain greens from mid-September, the coast last | **Ahead of the green.** Ground the dawn radar kept flagging through the rains was 2.2–2.9× as likely to be green by November | NISAR GUNW and GCOV (dusk and dawn passes); IMERG rain; HLS green-up dates |
+| **A season** | Jazan, Saudi Arabia | Storms off the Sarawat mountains; the coastal plain greens from mid-September, the coast last | **Where the green came.** Ground the dawn radar kept flagging through the rains was 2.2–2.9× as likely to be green by November (a match in place, not a lead time) | NISAR GUNW and GCOV (dusk and dawn passes); IMERG rain; HLS green-up dates |
 
 The finale puts all three on one axis (June–November 2026), with every NISAR pass and the gap with no NISAR data (27 July – 10 August) that the three places share.
 

@@ -29,7 +29,7 @@ export function Intro() {
     <section className="intro">
       <h1 className="wordmark"><span className="name">Piercer</span></h1>
       <p className="lede">In the summer of 2026, the ground changed faster than cameras could follow.</p>
-      <p className="sub">A glacier emptied into a valley in minutes. A fire crossed a plateau in weeks. Rain turned a desert plain green over a season. Cloud, smoke and storms hid each of them. One radar saw through.</p>
+      <p className="sub">A glacier emptied into a valley in minutes. A fire crossed a plateau in weeks. Rain turned a desert plain green over a season. Cloud, smoke and storms hid each of them from cameras. One radar, which needs neither sunlight nor clear skies, showed what the photos could not.</p>
       <ol className="steps">
         {STEPS.map((s) => (
           <li key={s.title}>

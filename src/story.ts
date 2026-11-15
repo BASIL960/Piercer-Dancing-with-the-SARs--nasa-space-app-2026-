@@ -10,8 +10,9 @@ export interface ChapterDef {
   layer: Layer;
   /** where time sits when the chapter opens */
   t: number;
-  /** guided playback when the chapter opens (skipped under reduced motion) */
-  play?: { from: number; to: number };
+  /** guided playback when the chapter opens (skipped under reduced motion); `rate` overrides the timeline's
+   *  speed inside this window, in simulated ms per real second */
+  play?: { from: number; to: number; rate?: number };
   follow?: "surge";
   /** the radar pass this chapter's words are about (Jazan) */
   pass?: "dusk" | "dawn";
@@ -117,7 +118,7 @@ export const PLACES: Record<SiteId, PlaceDef> = {
       { id: "run", view: { at: [42.72, -117.02], km: 150, tilt: 40, heading: 25 }, layer: "tc", t: O(7, 23, 12), play: { from: O(7, 23, 12), to: O(7, 29, 12) }, overlays: { places: true, ignition: true }, layers: ["tc", "fc"] },
       { id: "gap", view: { at: [42.7, -116.98], km: 165, tilt: 30, heading: 15 }, layer: "fc", t: O(7, 29, 12), play: { from: O(7, 29, 12), to: O(8, 30) }, overlays: { places: true, ignition: true }, layers: ["fc", "tc"] },
       { id: "islands", view: { at: [42.73, -117.0], km: 140, tilt: 8, heading: 0 }, layer: "fc", t: O(8, 30, 12), overlays: { places: true, perimeter: true }, layers: ["fc", "tc", "rad"], fx: { fire: 0 } },
-      { id: "green", view: { at: [42.86, -117.08], km: 52, tilt: 48, heading: 20 }, layer: "tc", t: O(10, 24, 12), overlays: { perimeter: true }, layers: ["tc", "rad", "fc"], fx: { fire: 0, tint: 0 } },
+      { id: "green", view: { at: [42.84, -116.95], km: 52, tilt: 48, heading: 20 }, layer: "tc", t: O(10, 24, 12), overlays: { perimeter: true }, layers: ["tc", "rad", "fc"], fx: { fire: 0, tint: 0 } },
       { id: "meaning", view: { at: [42.72, -117.0], km: 175, tilt: 28, heading: 10 }, layer: "rad", t: O(10, 24, 12), overlays: { places: true, perimeter: true }, fx: { fire: 0, tint: 0 } },
     ],
   },
@@ -138,9 +139,12 @@ export const PLACES: Record<SiteId, PlaceDef> = {
       phases: [],
     },
     chapters: [
-      { id: "mountains", view: { at: [17.18, 42.86], km: 120, tilt: 60, heading: 78 }, layer: "season", t: J(8, 12, 9), play: { from: J(8, 12, 9), to: J(8, 13, 3) }, overlays: { places: true }, fx: { rain: true }, layers: ["season", "photo"] },
-      { id: "wet", view: { at: [17.12, 42.72], km: 95, tilt: 30, heading: 40 }, layer: "wet", pass: "dusk", t: J(9, 10, 19), overlays: { places: true }, layers: ["wet", "season", "photo"] },
-      { id: "duskdawn", view: { at: [17.12, 42.72], km: 105, tilt: 22, heading: 25 }, layer: "change", pass: "dusk", t: J(9, 22, 19), overlays: { places: true }, layers: ["change", "wet"] },
+      // the wettest day, half hour by half hour (about 7 seconds), ending on that day so the readout matches the text
+      { id: "mountains", view: { at: [17.18, 42.86], km: 120, tilt: 60, heading: 78 }, layer: "season", t: J(8, 12, 9), play: { from: J(8, 12, 9), to: J(8, 12, 23, 30), rate: 2 * HOUR }, overlays: { places: true }, fx: { rain: true }, layers: ["season", "photo"] },
+      // both radar chapters open just after the dawn pass that follows the dusk pass in the text (dusk 18:39,
+      // dawn 05:39 the next morning), so the pass switch shows exactly the two acquisitions the words compare
+      { id: "wet", view: { at: [17.12, 42.72], km: 95, tilt: 30, heading: 40 }, layer: "wet", pass: "dusk", t: J(9, 11, 6), overlays: { places: true }, layers: ["wet", "season", "photo"] },
+      { id: "duskdawn", view: { at: [17.12, 42.72], km: 105, tilt: 22, heading: 25 }, layer: "change", pass: "dusk", t: J(9, 23, 6), overlays: { places: true }, layers: ["change", "wet"] },
       { id: "wave", view: { at: [17.12, 42.82], km: 150, tilt: 50, heading: 72 }, layer: "season", t: J(8, 1), play: { from: J(8, 1), to: J(11, 4, 12) }, overlays: { places: true }, fx: { rain: true }, layers: ["season", "photo"] },
       { id: "foretold", view: { at: [17.12, 42.75], km: 120, tilt: 15, heading: 0 }, layer: "freq", pass: "dawn", t: J(11, 1, 12), overlays: { places: true }, layers: ["freq", "season"] },
       { id: "meaning", view: { at: [17.06, 42.93], km: 32, tilt: 50, heading: 40 }, layer: "photo", t: J(11, 4, 12), overlays: { places: true, dams: true }, layers: ["photo", "season"] },

@@ -158,8 +158,10 @@ kbd { font: inherit; font-size: 0.75em; border: 1px solid var(--sand-3); border-
 .layers { display: grid; gap: 0.7rem; }
 .toggles { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1rem; }
 .legend { display: grid; gap: 0.3rem; font-size: 0.78rem; color: var(--sand-2); }
+.missing { margin: 0.6rem 0 0; padding: 0.45rem 0.65rem; font-size: 0.78rem; line-height: 1.4; color: var(--sand); background: rgba(255, 178, 63, 0.1); border-left: 2px solid #ffb23f; border-radius: 0 4px 4px 0; }
 .legend p { display: flex; gap: 0.5rem; align-items: center; }
 .legend i { width: 1.6rem; height: 0.55rem; border-radius: 2px; flex: none; }
+.legend i.dashed { height: 0; border-radius: 0; border-top: 1.5px dashed rgba(242, 239, 232, 0.85); }
 .legend .src-line { color: var(--sand-3); font-size: 0.74rem; }
 .readout { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem 1rem; margin: 1rem 0 0.2rem; padding: 0.8rem 0; border-block: 1px solid var(--line); }
 .readout dt { font-size: 0.68rem; letter-spacing: .08em; text-transform: uppercase; color: var(--sand-3); }
@@ -195,6 +197,10 @@ kbd { font: inherit; font-size: 0.75em; border: 1px solid var(--sand-3); border-
 .timeline .event { position: absolute; top: 2px; width: 9px; height: 9px; margin-left: -4.5px; transform: rotate(45deg); background: var(--sand-3); border-radius: 1px; z-index: 2; transition: background .2s, transform .2s; }
 .timeline .event.reported { background: #e5a24d; } .timeline .event.gap { background: transparent; box-shadow: inset 0 0 0 1.5px var(--sand-2); } .timeline .event.derived { background: var(--water); }
 .timeline .event:hover, .timeline .event.now { transform: rotate(45deg) scale(1.35); }
+.timeline .event:focus-visible { outline: 2px solid var(--sand); outline-offset: 3px; }
+/* a larger invisible hit area for fingers, without changing the marker */
+.timeline .event::after { content: ""; position: absolute; inset: -6px; }
+@media (pointer: coarse) { .timeline .event::after { inset: -9px; } }
 .timeline .ticks { position: absolute; left: 0; right: 0; top: 33px; height: 12px; font-size: 0.68rem; color: var(--sand-3); }
 .timeline .ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
 .timeline .phase { position: absolute; top: -10px; font-size: 0.62rem; letter-spacing: .1em; text-transform: uppercase; color: var(--sand-3); white-space: nowrap; }
@@ -280,9 +286,10 @@ kbd { font: inherit; font-size: 0.75em; border: 1px solid var(--sand-3); border-
 @keyframes pulse { from { transform: scale(.5); opacity: 1; } to { transform: scale(2.1); opacity: 0; } }
 
 /* ---------------------------------------------------------------- finale */
-.finale { position: absolute; inset: 0; overflow-y: auto; pointer-events: auto; }
+/* the finale scrolls below the top bar, so its text never runs under the navigation */
+.finale { position: absolute; inset: var(--top) 0 0 0; overflow-y: auto; pointer-events: auto; }
 .finale::before { content: ""; position: fixed; inset: 0; pointer-events: none; background: linear-gradient(to left, rgba(7, 11, 29, 0.95), rgba(7, 11, 29, 0.82) 46rem, rgba(7, 11, 29, 0.1) 70rem); }
-.finale-inner { position: relative; margin-left: auto; width: min(44rem, 100%); padding: calc(var(--top) + 1rem) var(--pad) 3rem; animation: arrive .8s .4s var(--ease) both; }
+.finale-inner { position: relative; margin-left: auto; width: min(44rem, 100%); padding: 1rem var(--pad) 3rem; animation: arrive .8s .4s var(--ease) both; }
 .finale h1 { font-family: var(--display); font-weight: 400; font-size: clamp(2.2rem, 4vw, 3.4rem); line-height: 1.04; margin: 0.4rem 0 0.8rem; }
 .finale .lede { margin: 0 0 1.4rem; }
 .finale-inner > .chart text { font-size: 11px; }

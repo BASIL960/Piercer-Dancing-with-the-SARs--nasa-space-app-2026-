@@ -11,6 +11,21 @@ import { Overlays } from "./Overlays";
 import { SiteHud } from "./SiteHud";
 import { Sources } from "./Sources";
 
+/** What went wrong, in words for a visitor; the technical detail stays one click away. */
+function Failure({ error }: { error: string }) {
+  const webgl = /webgl|context/i.test(error);
+  return (
+    <div className="failure" role="alert">
+      <h1>{webgl ? "This browser could not start the 3D view" : "The story could not be loaded"}</h1>
+      <p>{webgl
+        ? "Piercer draws the Earth with WebGL. Turn on hardware acceleration in your browser settings, or try an up-to-date Chrome, Edge, Firefox or Safari."
+        : "Part of the satellite data did not arrive. Check your connection and reload the page."}</p>
+      <p><button className="primary" onClick={() => location.reload()}>Reload</button></p>
+      <details><summary>Details</summary><p className="note">{error}</p></details>
+    </div>
+  );
+}
+
 function Header() {
   const phase = useStore((s) => s.phase);
   const siteId = useStore((s) => s.siteId);
@@ -95,7 +110,7 @@ export function App() {
       <Overlays />
       <div className={`hud phase-${phase}`}>
         {error ? (
-          <div className="failure" role="alert"><h1>The data did not load</h1><p>{error}</p></div>
+          <Failure error={error} />
         ) : (
           <>
             {ready && phase !== "intro" && <Header />}

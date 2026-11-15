@@ -56,8 +56,16 @@ export function PairsChart({ d, t, onPick }: { d: NepalData; t: number; onPick: 
       {keys.map((k, i) => {
         const p = d.std.pairs[k], x = 26 + i * bw, flood = k === "20260819_20260831";
         return (
-          <g key={k} className={`pair${i === cur ? " now" : ""}${flood ? " flood" : ""}`} onClick={() => onPick(NISAR_PASS_NEPAL(k.slice(9)) + 60000)} role="button" tabIndex={0}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPick(NISAR_PASS_NEPAL(k.slice(9)) + 60000); } }}
+          // the pairs are one tab stop (the pair on the map); arrow keys step through them, as clicking does
+          <g key={k} className={`pair${i === cur ? " now" : ""}${flood ? " flood" : ""}`} onClick={() => onPick(NISAR_PASS_NEPAL(k.slice(9)) + 60000)} role="button" tabIndex={i === cur ? 0 : -1}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPick(NISAR_PASS_NEPAL(k.slice(9)) + 60000); return; }
+              const j = e.key === "ArrowRight" ? i + 1 : e.key === "ArrowLeft" ? i - 1 : -1;
+              if (j < 0 || j >= n) return;
+              e.preventDefault(); e.stopPropagation();
+              onPick(NISAR_PASS_NEPAL(keys[j].slice(9)) + 60000);
+              e.currentTarget.parentElement?.querySelectorAll<SVGGElement>(".pair")[j]?.focus();
+            }}
             aria-label={`${fmtCompact(k.slice(0, 8))} to ${fmtCompact(k.slice(9))}: corridor ${pct(p.corridor)}%, slopes ${pct(p.control)}%`}>
             <rect x={x - 1} y={top - 6} width={bw - 2} height={H - top - bot + 8} className="hit" />
             <rect x={x + 1} y={Y(p.corridor)} width={bw * 0.36} height={H - bot - Y(p.corridor)} className="bar corridor" />

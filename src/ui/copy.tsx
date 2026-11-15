@@ -1,7 +1,9 @@
-// The words of the journey. Numbers are read from the site data (research/std_*.json), never typed in;
-// every one is listed with its rule and control in research/CLAIMS.md.
+// The words of the journey. Derived numbers are read from the site data (research/std_*.json). The few typed in
+// are reported figures (tolls, acres, containment, alerts) or values the site data does not hold (the VIIRS
+// busiest day, the Jizan Dam water areas); scripts/stories/verify.mjs re-checks those it can, and every number
+// is listed with its rule and control in research/CLAIMS.md.
 import type { ReactNode } from "react";
-import { DAY, fmtCompact, HOUR, isoDay, local, type JazanData, type NepalData, type OregonData, type SiteId, type Sites } from "../data";
+import { DAY, fmtCompact, fmtIso, HOUR, isoDay, local, type JazanData, type NepalData, type OregonData, type SiteId, type Sites } from "../data";
 import { NISAR_PASS_NEPAL } from "../story";
 import { area, Num, pct, range, Src, type Evidence } from "./bits";
 import { BurnChart, CompareBars, DuskDawnChart, GreenChart, HvChart, PairsChart, PassesStrip, ProfileChart, RainChart } from "./charts";
@@ -45,7 +47,7 @@ export const EVENTS: Record<SiteId, StoryEvent[]> = {
     { t: O(7, 28), text: "About 300,000 acres, 5% contained.", src: "idahonews.com", kind: "reported" },
     { t: O(8, 10), text: "541,000 acres, 41% contained. About 1,050 firefighters, 39 dozers and 6 helicopters on the fire.", src: "Elkhorn Media Group", kind: "reported" },
     { t: O(8, 15), text: "578,000 acres, 55% contained. Storms spark new fires nearby.", src: "idahonews.com", kind: "reported" },
-    { t: O(8, 21), text: "NISAR's first pass over the fire after the gap.", src: "NISAR", kind: "measured" },
+    { t: O(8, 21), text: "First pass after the gap on the NISAR track used here, which covers the whole fire.", src: "NISAR", kind: "measured" },
     { t: O(8, 23), text: "93% contained; command handed back to local crews.", src: "NIFC", kind: "reported" },
     { t: O(8, 30), text: "First clear view of the whole scar.", src: "NASA HLS", kind: "measured" },
     { t: O(10, 20), text: "NISAR: the shrub signal is still down where it burned hottest.", src: "NISAR GCOV", kind: "derived" },
@@ -86,9 +88,9 @@ const NEPAL: Record<string, ChapterCopy> = {
     kicker: "Minutes · 26 August",
     title: "08:37",
     tags: ["reported", "interpolated"],
-    body: () => <>
+    body: (c) => <>
       <p>Seismometers recorded the jolt as ice and rock broke away high above the valley head, on the ridge north of Langtang Lirung, and fell into the stream below.</p>
-      <p>The water reached the Rasuwagadhi border crossing and Timure at about 09:00, and Syabrubesi, 14 km further down, about ten minutes later. Further downstream at Galchhi, the Trishuli rose 9 metres in 30 minutes.</p>
+      <p>The water reached the Rasuwagadhi border crossing and Timure at about 09:00, and Syabrubesi, {Math.round(np(c).kmS - np(c).kmR)} km further down the valley, about ten minutes later. Further downstream at Galchhi, the Trishuli rose 9 metres in 30 minutes.</p>
       <Note>Between those reported times, the moving front is an estimate along the valley floor traced from the elevation model. Early reports called the source a glacial-lake outburst; ICIMOD described an ice avalanche.</Note>
     </>,
     evidence: (c) => <><h3>Following the surge</h3><ProfileChart d={np(c)} t={c.t} /><Note>White dot: the estimated front. The blue on the map is ground the October photos show as stripped, coloured as the estimated surge reaches it.</Note></>,
@@ -151,6 +153,7 @@ const NEPAL: Record<string, ChapterCopy> = {
 // ---------------------------------------------------------------- Big Grass Fire
 const og = (c: Ctx) => c.sites.oregon as OregonData;
 const cohFire = (d: OregonData) => d.std.coh["20260716_20260821"];
+const burnOn = (d: OregonData, iso: string) => d.std.series.find((s) => s.date === iso)!;
 const OREGON: Record<string, ChapterCopy> = {
   spark: {
     kicker: "Weeks · Big Grass Fire, Oregon–Idaho",
@@ -165,9 +168,9 @@ const OREGON: Record<string, ChapterCopy> = {
     kicker: "Weeks · the first days",
     title: "Six days",
     tags: ["measured", "derived", "reported", "interpolated"],
-    body: (c) => { const d = og(c), b = d.std.jul29Bounds; return <>
+    body: (c) => { const d = og(c), b = d.std.jul29Bounds, hid = 100 - burnOn(d, "2026-07-29").valid_in_perimeter * 100; return <>
       <p>The fire ran north and east. 26 July was its busiest day: 19% of all its VIIRS fire detections were first seen then. Officials reported about 300,000 acres and 5% containment on 28 July.</p>
-      <p>By 29 July, the clear parts of that day's satellite photos show at least <b>{Math.round(b[0])}%</b> of the final burned area already burned. Smoke and cloud hid 37% of the perimeter, so the true figure could be as high as <b>{Math.round(b[1])}%</b>.</p>
+      <p>By 29 July, the clear parts of that day's satellite photos show at least <b>{Math.round(b[0])}%</b> of the final burned area already burned. Smoke and cloud hid {Math.round(hid)}% of the perimeter, so the true figure could be as high as <b>{Math.round(b[1])}%</b>.</p>
       <Note>The glowing front is an estimate: VIIRS fire days with photo edges, filled in within each day.</Note>
     </>; },
     evidence: (c) => <><h3>Share of the final burned area</h3><BurnChart d={og(c)} t={c.t} /><Note>Dots: clear photos (small where smoke hid part of the fire). Faint line: the animation's estimate.</Note></>,
@@ -176,12 +179,14 @@ const OREGON: Record<string, ChapterCopy> = {
     kicker: "Weeks · a gap in the record",
     title: "The radar's blind spot",
     tags: ["measured", "derived", "reported"],
-    body: (c) => { const k = cohFire(og(c)); return <>
-      <p>Radar has gaps too. NISAR made no passes over the fire from 26 July to 12 August. In those days a second surge pushed it south and east into Idaho, watched only by optical satellites through their own smoke. Photos show 94% of the final burned area burned by 10 August, and 99% by 23 August, when the fire was 93% contained.</p>
+    body: (c) => { const d = og(c), k = cohFire(d); return <>
+      <p>Radar has gaps too. NISAR made no passes over the fire from 26 July to 12 August. In those days a second surge pushed it south and east into Idaho, watched only by optical satellites through their own smoke. Photos show {Math.round(burnOn(d, "2026-08-10").share_of_final)}% of the final burned area burned by 10 August, and {Math.round(burnOn(d, "2026-08-23").share_of_final)}% by 23 August, when the fire was 93% contained.</p>
       <p>When NISAR came back on 21 August, comparing it with 16 July (a 36-day pair, because of the gap) showed <Num v={k["t0.2"].burned} lo={k["t0.25"].burned} hi={k["t0.15"].burned} /> of the burned ground changed, and <b>{pct(k["t0.2"].hot)}%</b> where it burned hottest. On land outside the fire: {pct(k["t0.2"].control)}%.</p>
       <Note>False colour (short-wave infrared, near-infrared, red): fresh burn shows deep red, live plants green.</Note>
     </>; },
-    evidence: (c) => <><h3>Share of the final burned area</h3><BurnChart d={og(c)} t={c.t} /><Note>The shaded band: no NISAR passes over the fire.</Note></>,
+    evidence: (c) => <><h3>Share of the final burned area</h3><BurnChart d={og(c)} t={c.t} />
+      <Note>The shaded band: no NISAR passes over the fire. The track used here, which covers all of it, passed on 16 July and next on 21 August.</Note>
+      <Note>Each dot is one photo compared with the same pre-fire blend, so it can read low but burned ground cannot un-burn. The two low dots (12 and 20 August) are Landsat photos with part of the fire hidden, against a mostly Sentinel-2 blend; we treat them as limits of a single photo, not regrowth, and quote only full views.</Note></>,
   },
   islands: {
     kicker: "Weeks · the full scar",
@@ -231,6 +236,8 @@ const OREGON: Record<string, ChapterCopy> = {
 const jz = (c: Ctx) => c.sites.jazan as JazanData;
 const jazanAlerts = EVENTS.jazan.filter((e) => e.kind === "reported").map((e) => ({ t: e.t, kind: /red alert/i.test(e.text) ? "red" : "warn" }));
 const wetShare = (d: JazanData, key: string) => d.std.brightness[key];
+/** the largest "wet" share on any dry-season pass (before the rains, 24 July), either track */
+const dryMax = (d: JazanData) => Math.max(...Object.entries(d.std.brightness).filter(([k]) => k.slice(4) < "20260724").map(([, v]) => v["b2.0"]));
 const JAZAN: Record<string, ChapterCopy> = {
   mountains: {
     kicker: "A season · Jazan, Saudi Arabia",
@@ -249,7 +256,7 @@ const JAZAN: Record<string, ChapterCopy> = {
     tags: ["derived"],
     body: (c) => { const d = jz(c); const a = wetShare(d, "064_20260910"), b = wetShare(d, "071_20260911"); return <>
       <p>Soaked soil sends back a stronger radar echo. NISAR's pass at 18:39 on 10 September found <Num v={a["b2.0"]} lo={a["b2.5"]} hi={a["b1.5"]} /> of the coastal plain more than 2 dB brighter than in the dry season, on ground the photos show was not green. On the 05:39 pass the next morning: <Num v={b["b2.0"]} lo={b["b2.5"]} hi={b["b1.5"]} />.</p>
-      <p>In the dry season, the same test flags 0.2% of the plain or less.</p>
+      <p>In the dry season, the same test flags {pct(dryMax(d))}% of the plain or less.</p>
       <Note>Blue: brighter than the dry season. Orange: darker (smooth wet mud, standing water or bare ploughed land). Use the pass switch to compare dusk and dawn.</Note>
     </>; },
     evidence: (c) => { const d = jz(c); const a = wetShare(d, "064_20260910"), b = wetShare(d, "071_20260911"), dry = wetShare(d, "064_20260630"); return <><h3>Wet ground on the coastal plain</h3>
@@ -267,7 +274,7 @@ const JAZAN: Record<string, ChapterCopy> = {
     body: (c) => { const a = jz(c).std.avg; return <>
       <p>NISAR crosses Jazan twice in each 12-day cycle: at 18:39 heading south (dusk) and at 05:39 heading north (dawn). Over the same rainy-season windows, the dusk pass shows <Num v={a.dusk} lo={a.duskLo} hi={a.duskHi} /> of the plain changed on average. The dawn pass: <Num v={a.dawn} lo={a.dawnLo} hi={a.dawnHi} />. In the dry June–July pairs, about 1% and 4.5%.</p>
       <p>Rain had fallen on more than 5% of the area in the hours before 5 of the 8 rainy-season dusk passes. Before the dawn passes it never had.</p>
-      <Q>The dusk pass catches each storm's fresh footprint; the dawn pass shows what lasts. Afternoon wind moving the crops is another possible cause.</Q>
+      <Q>The dusk pass catches each storm's fresh footprint; the dawn pass shows what lasts. Afternoon wind moving the crops is another possible cause, and the two passes look at the ground from opposite sides, which can change what they see.</Q>
     </>; },
     evidence: (c) => <><h3>Ground changed between 12-day passes</h3><DuskDawnChart d={jz(c)} t={c.t} pass={c.pass} /><Note>Rule: coherence at least 0.20 below the best dry-season pair on the same track. Small dots are 24-day pairs, left out of the averages.</Note></>,
   },
@@ -275,8 +282,8 @@ const JAZAN: Record<string, ChapterCopy> = {
     kicker: "A season · August to November",
     title: "The coast greens last",
     tags: ["derived", "reported"],
-    body: (c) => { const g = jz(c).std.green; return <>
-      <p>Then the plain turns green. Per-pixel dates from 69 clear NASA HLS photos show land between 100 and 250 m greening around 16 September, and the low coast below 100 m only around 19 October.</p>
+    body: (c) => { const d = jz(c), g = d.std.green, up = g.bands["0.15"].median_upday, day = (iso: string) => fmtIso(iso); return <>
+      <p>Then the plain turns green. Per-pixel dates from {d.hls.length} clear NASA HLS photos show land between 100 and 250 m greening around {day(up["100-250"])}, and the low coast below 100 m only around {day(up["0-100"])}.</p>
       <p>By 1 November, <Num v={g.km2} lo={g.lo} hi={g.hi} unit="km²" f={area} /> of the plain was newly green: <Num v={g.pct} lo={g.pctLo} hi={g.pctHi} /> of it.</p>
       <Note>Most of it is likely rain-fed farmland plus wild plants on the wadi fans. Sorghum, pearl millet and sesame are the region's main rain-fed crops (<Src href="https://saudiarabia.un.org/en/node/284255">UN in Saudi Arabia</Src>); crop type is not measured here.</Note>
     </>; },
@@ -284,19 +291,20 @@ const JAZAN: Record<string, ChapterCopy> = {
   },
   foretold: {
     kicker: "A season · radar and photos together",
-    title: "The radar marked the ground first",
+    title: "Where the radar kept seeing change",
     tags: ["derived", "interpretation"],
     body: (c) => { const x = jz(c).std.xcheck; return <>
       <p>This map shows how often the dawn radar saw the ground change through the rains, window by window. Of the plain it flagged in at least 3 of 6 windows, <Num v={x.flagged} lo={x.flaggedLo} hi={x.flaggedHi} /> was clearly green by November. Of the rest, <Num v={x.not} lo={x.notLo} hi={x.notHi} />.</p>
-      <p>Flagged ground was {Math.min(...x.ratios).toFixed(1)}–{Math.max(...x.ratios).toFixed(1)} times as likely to turn green, at every combination of thresholds.</p>
-      <Q>Radar knows nothing about plants. It noticed the ground changing, again and again, where crops later came up.</Q>
+      <p>Flagged ground was {Math.min(...x.ratios).toFixed(1)}–{Math.max(...x.ratios).toFixed(1)} times as likely to be green, at every combination of thresholds.</p>
+      <Q>Radar knows nothing about plants, yet it kept seeing change in the places that turned green. Some of that change may be the crops themselves growing.</Q>
+      <Note>This is a match in place, not in time. The test does not show that the radar saw the change before the plants came up, so it is not a forecast.</Note>
     </>; },
     evidence: (c) => { const x = jz(c).std.xcheck; return <><h3>Green by November</h3>
       <CompareBars label="Share of the plain green by November" rows={[
         { name: "Radar flagged ≥3×", v: x.flagged, lo: x.flaggedLo, hi: x.flaggedHi, kind: "green" },
         { name: "Rest of the plain", v: x.not, lo: x.notLo, hi: x.notHi, kind: "control" },
       ]} />
-      <Note>Brighter blue on the map: ground that changed in more rainy-season windows (dawn pass, 24 Jul – 17 Oct).</Note></>; },
+      <Note>Brighter blue on the map: ground that changed in more rainy-season windows (dawn pass, 25 Jul – 17 Oct).</Note></>; },
   },
   meaning: {
     kicker: "A season · why it matters",
@@ -304,7 +312,7 @@ const JAZAN: Record<string, ChapterCopy> = {
     tags: ["derived", "interpretation"],
     body: () => <>
       <p>Near the Jizan Dam, 8 of 9 clear June photos showed less than 0.6 km² of open water. On 19 October and 4 November there was about 2.5 km².</p>
-      <p>Jazan's farmers and Civil Defense watch these same storms. A radar that sees wet ground at night and through cloud, and marks where the land is changing weeks before it greens, could support flood warnings and crop outlooks.</p>
+      <p>Jazan's farmers and Civil Defense watch these same storms. A radar that sees wet ground at night and through cloud, and keeps track of where the land is changing through the season, could support flood warnings and crop monitoring. Whether it can give warning before the green appears is a test still to be done.</p>
       <Note>The NISAR products used here are provisional, and the rain is IMERG's near-real-time Late run; both will be replaced by final versions.</Note>
     </>,
   },
@@ -330,7 +338,7 @@ export const LAYER_INFO: Record<SiteId, Record<string, { name: string; legend: [
     wet: { name: "Wet ground", src: "NISAR L2 GCOV HH vs the dry season", legend: [["#3887e5", "Brighter: wetter ground or growing crops"], ["#eb7333", "Darker: smooth mud, water or ploughed land"]] },
     change: { name: "Radar change", src: "NISAR L2 GUNW coherence, 12-day pairs", legend: [["#b8e6ff", "Ground changed between two passes"], ["#5a6168", "Unchanged"]] },
     photo: { name: "Photo", src: "NASA HLS (Landsat + Sentinel-2), blending between clear dates", legend: [] },
-    freq: { name: "How often", src: "NISAR GUNW, rainy-season windows 24 Jul – 17 Oct", legend: [["#c0e8ff", "Changed in many windows"], ["#26508a", "Changed in a few"]] },
+    freq: { name: "How often", src: "NISAR GUNW, dawn pass, rainy-season windows 25 Jul – 17 Oct", legend: [["#c0e8ff", "Changed in many windows"], ["#26508a", "Changed in a few"]] },
   },
 };
 

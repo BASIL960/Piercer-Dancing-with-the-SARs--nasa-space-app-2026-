@@ -1,3 +1,4 @@
+import type { KeyboardEvent as KeyEvent } from "react";
 import { fmtClock, fmtDay, TZ, type SiteId } from "../data";
 import { useStore } from "../store";
 import { PLACES, sliderOf } from "../story";
@@ -18,6 +19,15 @@ export function Timeline() {
   let cur = -1;
   events.forEach((e, k) => { if (t >= e.t) cur = k; });
   const now = cur >= 0 && t - events[cur].t < (siteId === "nepal" && minutes ? 12 * 60000 : 2.5 * 86400000) ? events[cur] : null;
+  // the dated events are one tab stop (the latest event so far); arrow keys move between them, Enter jumps there
+  const roving = Math.max(0, cur);
+  const onEventKey = (e: KeyEvent<HTMLButtonElement>, k: number) => {
+    const to = e.key === "ArrowRight" || e.key === "ArrowDown" ? k + 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? k - 1 : e.key === "Home" ? 0 : e.key === "End" ? events.length - 1 : null;
+    if (to === null) return;
+    e.preventDefault(); e.stopPropagation();
+    const btns = e.currentTarget.parentElement!.querySelectorAll<HTMLButtonElement>(".event");
+    btns[Math.max(0, Math.min(events.length - 1, to))]?.focus();
+  };
 
   return (
     <div className="timeline" role="group" aria-label="Time">
@@ -32,7 +42,8 @@ export function Timeline() {
         {tl.phases.map((p) => <span key={p.label} className="phase" style={{ left: `${p.s * 100}%` }}>{p.label}</span>)}
         <div className="rail"><i style={{ width: `${sl.toS(t) * 100}%` }} /></div>
         {events.map((e, k) => (
-          <button key={k} className={`event ${e.kind}${k === cur ? " now" : ""}`} style={{ left: `${sl.toS(e.t) * 100}%` }} onClick={() => setTime(e.t + 60000, true)} aria-label={`${fmtDay(siteId, e.t)}: ${e.text}`} title={e.text} tabIndex={-1} />
+          <button key={k} className={`event ${e.kind}${k === cur ? " now" : ""}`} style={{ left: `${sl.toS(e.t) * 100}%` }} onClick={() => setTime(e.t + 60000, true)} onKeyDown={(ev) => onEventKey(ev, k)}
+            aria-label={`Event ${k + 1} of ${events.length}, ${fmtDay(siteId, e.t)}: ${e.text}${k === 0 ? " (arrow keys move between events)" : ""}`} title={e.text} tabIndex={k === roving ? 0 : -1} />
         ))}
         <input type="range" min={0} max={1000} step={1} value={Math.round(sl.toS(t) * 1000)} onChange={(e) => setTime(sl.fromS(+e.target.value / 1000))}
           aria-label="Date" aria-valuetext={`${fmtDay(siteId, t, true)} ${fmtClock(siteId, t)}`} />

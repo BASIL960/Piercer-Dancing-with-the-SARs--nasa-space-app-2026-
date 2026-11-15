@@ -1,5 +1,7 @@
 # Build plan: Dancing with the SARs
 
+> **Superseded.** This is the original plan for the centre-pivot farm concept, kept for the record. The project became Piercer, a three-place story (Bhote Koshi, Big Grass Fire, Jazan); see [README.md](README.md) for what was built and [research/CLAIMS.md](research/CLAIMS.md) for every number it shows.
+
 Written 14 Nov 2026, 12:37 pm (Saudi time). **This is planning only.** .
 
 Related notes: [CHALLENGE.md](CHALLENGE.md) (official brief), [VIDEO_REFERENCE.md](VIDEO_REFERENCE.md) (the reference video).
