@@ -214,7 +214,7 @@ const OREGON: Record<string, ChapterCopy> = {
     body: (c) => { const h = og(c).std.hv["20261020"]; return <>
       <p>By late October, autumn rain had greened the grass inside the scar. In the photos, much of the burn looks as if it is healing.</p>
       <p><b>Now switch to radar.</b> NISAR's cross-polarised echo (HV) comes mostly from the woody structure of shrubs. Where the fire burned hottest, on 20 October it was at <b>{h.hot.pct_of_pre}%</b> of its pre-fire strength. On unburned land outside, which dries out over the summer, it was at {h.control.pct_of_pre}%.</p>
-      <p><Num v={h.hot["darker2.0"]} lo={h.hot["darker2.5"]} hi={h.hot["darker1.5"]} /> of the hottest-burned ground was more than 2 dB darker than before the fire. Outside the fire: {pct(h.control["darker2.0"])}% {range(h.control["darker2.5"], h.control["darker1.5"])}.</p>
+      <p><Num v={h.hot["darker2.0"]} lo={h.hot["darker2.5"]} hi={h.hot["darker1.5"]} /> of the hottest-burned ground was more than 2 dB darker than before the fire (an echo about a third weaker). Outside the fire: {pct(h.control["darker2.0"])}% {range(h.control["darker2.5"], h.control["darker1.5"])}.</p>
       <Q>The photos see new grass. The radar sees that the shrubs are gone.</Q>
     </>; },
     evidence: (c) => <><h3>Shrub signal (HV) after the fire</h3>
@@ -255,7 +255,7 @@ const JAZAN: Record<string, ChapterCopy> = {
     title: "Wet ground, through the cloud",
     tags: ["derived"],
     body: (c) => { const d = jz(c); const a = wetShare(d, "064_20260910"), b = wetShare(d, "071_20260911"); return <>
-      <p>Soaked soil sends back a stronger radar echo. NISAR's pass at 18:39 on 10 September found <Num v={a["b2.0"]} lo={a["b2.5"]} hi={a["b1.5"]} /> of the coastal plain more than 2 dB brighter than in the dry season, on ground the photos show was not green. On the 05:39 pass the next morning: <Num v={b["b2.0"]} lo={b["b2.5"]} hi={b["b1.5"]} />.</p>
+      <p>Soaked soil sends back a stronger radar echo. NISAR's pass at 18:39 on 10 September found <Num v={a["b2.0"]} lo={a["b2.5"]} hi={a["b1.5"]} /> of the coastal plain more than 2 dB brighter than in the dry season (an echo over half as strong again), on ground the photos show was not green. On the 05:39 pass the next morning: <Num v={b["b2.0"]} lo={b["b2.5"]} hi={b["b1.5"]} />.</p>
       <p>In the dry season, the same test flags {pct(dryMax(d))}% of the plain or less.</p>
       <Note>Blue: brighter than the dry season. Orange: darker (smooth wet mud, standing water or bare ploughed land). Use the pass switch to compare dusk and dawn.</Note>
     </>; },
@@ -294,7 +294,7 @@ const JAZAN: Record<string, ChapterCopy> = {
     title: "Where the radar kept seeing change",
     tags: ["derived", "interpretation"],
     body: (c) => { const x = jz(c).std.xcheck; return <>
-      <p>This map shows how often the dawn radar saw the ground change through the rains, window by window. Of the plain it flagged in at least 3 of 6 windows, <Num v={x.flagged} lo={x.flaggedLo} hi={x.flaggedHi} /> was clearly green by November. Of the rest, <Num v={x.not} lo={x.notLo} hi={x.notHi} />.</p>
+      <p>This map shows how often the dawn radar saw the ground change through the rains. Each window is the 12 days between two passes, and there are six of them. Of the plain it flagged in at least 3 of 6 windows, <Num v={x.flagged} lo={x.flaggedLo} hi={x.flaggedHi} /> was clearly green by November. Of the rest, <Num v={x.not} lo={x.notLo} hi={x.notHi} />.</p>
       <p>Flagged ground was {Math.min(...x.ratios).toFixed(1)}–{Math.max(...x.ratios).toFixed(1)} times as likely to be green, at every combination of thresholds.</p>
       <Q>Radar knows nothing about plants, yet it kept seeing change in the places that turned green. Some of that change may be the crops themselves growing.</Q>
       <Note>This is a match in place, not in time. The test does not show that the radar saw the change before the plants came up, so it is not a forecast.</Note>
@@ -304,7 +304,7 @@ const JAZAN: Record<string, ChapterCopy> = {
         { name: "Radar flagged ≥3×", v: x.flagged, lo: x.flaggedLo, hi: x.flaggedHi, kind: "green" },
         { name: "Rest of the plain", v: x.not, lo: x.notLo, hi: x.notHi, kind: "control" },
       ]} />
-      <Note>Brighter blue on the map: ground that changed in more rainy-season windows (dawn pass, 25 Jul – 17 Oct).</Note></>; },
+      <Note>Brighter blue on the map: ground that changed in more rainy-season windows. The figures above are for the dawn pass (25 Jul – 17 Oct); the map follows the pass switch.</Note></>; },
   },
   meaning: {
     kicker: "A season · why it matters",
@@ -329,8 +329,7 @@ export const LAYER_INFO: Record<SiteId, Record<string, { name: string; legend: [
     before: { name: "Before", src: "NASA HLS cloud-free blend of May–Aug photos", legend: [] },
   },
   oregon: {
-    tc: { name: "True colour", src: "NASA HLS 30 m", legend: [["#ffc23d", "Fire front (estimated within each day)"], ["#c2370f", "Burned in the last day"], ["#5a2a1e", "Burned ground (tinted photo)"]] },
-    fc: { name: "False colour", src: "NASA HLS: short-wave infrared, near-infrared, red", legend: [["#c43b3b", "Fresh burn"], ["#4caf50", "Live plants"]] },
+    tc: { name: "True colour", src: "NASA HLS 30 m", legend: [["#ffc23d", "Fire front (estimated within each day)"], ["#c2370f", "Burned in the last day"], ["#5a2a1e", "Burned ground (tinted photo)"]] },    fc: { name: "False colour", src: "NASA HLS: short-wave infrared, near-infrared, red", legend: [["#c43b3b", "Fresh burn"], ["#4caf50", "Live plants"]] },
     rad: { name: "Radar", src: "NISAR L2 GCOV, calibrated, same dB scale every date", legend: [["#9ad47a", "HV: shrub and woody structure"], ["#d68ad6", "HH: bare ground"]] },
   },
   jazan: {
@@ -338,7 +337,7 @@ export const LAYER_INFO: Record<SiteId, Record<string, { name: string; legend: [
     wet: { name: "Wet ground", src: "NISAR L2 GCOV HH vs the dry season", legend: [["#3887e5", "Brighter: wetter ground or growing crops"], ["#eb7333", "Darker: smooth mud, water or ploughed land"]] },
     change: { name: "Radar change", src: "NISAR L2 GUNW coherence, 12-day pairs", legend: [["#b8e6ff", "Ground changed between two passes"], ["#5a6168", "Unchanged"]] },
     photo: { name: "Photo", src: "NASA HLS (Landsat + Sentinel-2), blending between clear dates", legend: [] },
-    freq: { name: "How often", src: "NISAR GUNW, dawn pass, rainy-season windows 25 Jul – 17 Oct", legend: [["#c0e8ff", "Changed in many windows"], ["#26508a", "Changed in a few"]] },
+    freq: { name: "How often", src: "NISAR GUNW coherence, the pass chosen above", legend: [["#c0e8ff", "Changed in many windows"], ["#26508a", "Changed in a few"]] },
   },
 };
 

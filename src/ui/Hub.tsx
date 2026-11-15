@@ -10,7 +10,7 @@ import { Icon, PLACE_ACCENT } from "./icons";
 function teaser(id: SiteId) {
   if (id === "nepal") return "A wall of water ran down a Himalayan valley. Cloud hid it from every camera for five weeks.";
   if (id === "oregon") return "Lightning lit the sagebrush. By October the hills looked green again. Radar disagreed.";
-  return "Storms spilled off the mountains onto a desert plain. Radar mapped the wet ground before the green came.";
+  return "Storms spilled off the mountains onto a desert plain. Radar mapped the wet ground through the storms, by day and by night.";
 }
 function stat(id: SiteId, sites: ReturnType<typeof useSites>): [string, string, string] {
   if (id === "nepal") return [String((sites.nepal as NepalData).pathKm), "km", "of valley in the surge's path"];

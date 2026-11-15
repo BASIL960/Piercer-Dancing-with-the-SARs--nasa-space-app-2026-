@@ -16,6 +16,8 @@ export interface ChapterDef {
   follow?: "surge";
   /** the radar pass this chapter's words are about (Jazan) */
   pass?: "dusk" | "dawn";
+  /** the words describe that one pass only (not a dusk/dawn comparison), so the panel flags the other one */
+  onePass?: boolean;
   /** which layers this chapter offers in its switcher */
   layers?: Layer[];
   overlays?: { places?: boolean; route?: boolean; perimeter?: boolean; ignition?: boolean; dams?: boolean };
@@ -147,7 +149,7 @@ export const PLACES: Record<SiteId, PlaceDef> = {
       { id: "wet", view: { at: [17.12, 42.72], km: 95, tilt: 30, heading: 40 }, layer: "wet", pass: "dusk", t: J(9, 11, 6), overlays: { places: true }, layers: ["wet", "season", "photo"] },
       { id: "duskdawn", view: { at: [17.12, 42.72], km: 105, tilt: 22, heading: 25 }, layer: "change", pass: "dusk", t: J(9, 23, 6), overlays: { places: true }, layers: ["change", "wet"] },
       { id: "wave", view: { at: [17.12, 42.82], km: 150, tilt: 50, heading: 72 }, layer: "season", t: J(9, 24, 12), play: true, overlays: { places: true }, fx: { rain: true }, layers: ["season", "photo"] },
-      { id: "foretold", view: { at: [17.12, 42.75], km: 120, tilt: 15, heading: 0 }, layer: "freq", pass: "dawn", t: J(11, 1, 12), overlays: { places: true }, layers: ["freq", "season"] },
+      { id: "foretold", view: { at: [17.12, 42.75], km: 120, tilt: 15, heading: 0 }, layer: "freq", pass: "dawn", onePass: true, t: J(11, 1, 12), overlays: { places: true }, layers: ["freq", "season"] },
       { id: "meaning", view: { at: [17.06, 42.93], km: 32, tilt: 50, heading: 40 }, layer: "photo", t: J(11, 4, 12), overlays: { places: true, dams: true }, layers: ["photo", "season"] },
     ],
   },

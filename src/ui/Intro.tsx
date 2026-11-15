@@ -4,6 +4,7 @@ import { useStore } from "../store";
 import { PLACES } from "../story";
 import { useEngine } from "./bits";
 import { Brand, Icon, PLACE_ACCENT } from "./icons";
+import { RadarDiagram } from "./RadarDiagram";
 
 /** While Earth loads: the brand and a progress bar. */
 export function Intro() {
@@ -32,44 +33,6 @@ const READ: [string, string][] = [
   ["reported", "Said by officials or the press, with the source named."],
   ["interpolated", "Estimated between two known points, and marked est."],
 ];
-
-/** The pulse goes down through the cloud, the echo comes back: drawn, not explained. */
-function RadarDiagram() {
-  return (
-    <svg className="radar-dia" viewBox="0 0 420 360" role="img" aria-label="NISAR sends a microwave pulse down through a cloud to the ground and records the echo that comes back.">
-      <defs>
-        <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--signal)" stopOpacity=".55" /><stop offset="1" stopColor="var(--signal)" stopOpacity=".05" /></linearGradient>
-      </defs>
-      {/* the beam */}
-      <path d="M 210 64 L 120 300 L 300 300 Z" fill="url(#beam)" />
-      {/* outgoing pulses */}
-      {[0, 1, 2].map((k) => <path key={`o${k}`} className="pulse out" style={{ animationDelay: `${k * 0.9}s` }} d="M 176 0 Q 210 14 244 0" transform="translate(0 80)" />)}
-      {/* returning echoes */}
-      {[0, 1, 2].map((k) => <path key={`e${k}`} className="pulse back" style={{ animationDelay: `${0.45 + k * 0.9}s` }} d="M 186 0 Q 210 -10 234 0" transform="translate(0 290)" />)}
-      {/* the cloud it passes through */}
-      <g className="dia-cloud">
-        <ellipse cx="150" cy="178" rx="70" ry="22" /><ellipse cx="215" cy="166" rx="62" ry="28" /><ellipse cx="275" cy="182" rx="66" ry="20" />
-      </g>
-      {/* the ground */}
-      <path className="dia-ground" d="M 0 350 Q 210 270 420 350" />
-      <path className="dia-scar" d="M 132 312 Q 210 294 288 312" />
-      {/* the satellite */}
-      <g className="dia-sat" transform="translate(210 48)">
-        <path d="M -38 -6 A 44 44 0 0 0 38 -6" fill="none" stroke="var(--sand)" strokeWidth="2" />
-        <rect x="-9" y="-2" width="18" height="18" rx="2" fill="var(--sand)" />
-        <rect x="-62" y="2" width="44" height="9" rx="1" fill="none" stroke="var(--sand-2)" strokeWidth="1.5" />
-        <rect x="18" y="2" width="44" height="9" rx="1" fill="none" stroke="var(--sand-2)" strokeWidth="1.5" />
-      </g>
-      <g className="dia-labels">
-        <text x="300" y="54">NISAR, 747 km up</text>
-        <text x="20" y="150">Cloud, smoke, night:</text>
-        <text x="20" y="166">microwaves pass through</text>
-        <text x="300" y="250">the echo comes back</text>
-        <text x="300" y="330">changed ground</text>
-      </g>
-    </svg>
-  );
-}
 
 /**
  * The landing: a close Earth behind the name and the idea, then what NISAR is and how its radar sees.
@@ -107,10 +70,11 @@ export function Landing() {
       <section className="land-hero">
         <Brand size="lg" />
         <p className="eyebrow"><span className="pulse-dot" aria-hidden="true" />NASA Space Apps Challenge 2026 · NISAR radar</p>
-        <h1>See the ground through cloud, smoke and night.</h1>
+        <h1>See the ground <span className="through">through</span> cloud, smoke and night.</h1>
         <p className="land-lede">
           Piercer follows three events of 2026 with radar from NISAR, the NASA–ISRO satellite: a glacier flood in Nepal, a wildfire on the
-          Oregon–Idaho border and a rainy season on Saudi Arabia's Red Sea coast. Cameras lost sight of each one. The radar did not.
+          Oregon–Idaho border and a rainy season on Saudi Arabia's Red Sea coast. Cloud, smoke or storms hid each one from cameras.
+          Here is what the radar recorded, and where it had gaps of its own.
         </p>
         <div className="land-cta">
           <button className="primary" onClick={enter}>Explore the globe <Icon.arrow size={16} /></button>
@@ -128,7 +92,7 @@ export function Landing() {
 
       <section className="land-radar" id="radar">
         <div className="radar-text">
-          <p className="eyebrow">The satellite</p>
+          <p className="eyebrow sec"><span className="sec-n">01</span>The satellite</p>
           <h2>NISAR brings its own light.</h2>
           <p>NISAR is a joint mission of NASA and ISRO, India's space agency. It launched on 30 July 2025 and maps almost all of Earth's land and ice every 12 days.</p>
           <p>A camera needs sunlight and a clear sky. A radar does not. NISAR sends microwave pulses down to the ground and records the echo that comes back. Microwaves pass through cloud, smoke and darkness, so the radar sees on the days a camera sees nothing.</p>
@@ -141,7 +105,7 @@ export function Landing() {
       </section>
 
       <section className="land-read">
-        <p className="eyebrow">How to read the numbers</p>
+        <p className="eyebrow sec"><span className="sec-n">02</span>How to read the numbers</p>
         <h2>Every number says how sure it is.</h2>
         <ul className="read-list">
           {READ.map(([k, txt]) => <li key={k}><span className={`tag tag-${k}`}><i />{k[0].toUpperCase() + k.slice(1)}</span><span>{txt}</span></li>)}

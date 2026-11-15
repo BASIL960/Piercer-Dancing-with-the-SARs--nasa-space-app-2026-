@@ -220,7 +220,7 @@ export const contextFrag = (rain: boolean) => /* glsl */ `
 // interpolated within each day (estimate, stated on screen).
 export const FIRE_FRAG = /* glsl */ `
   uniform sampler2D tPre0, tA0, tB0, tPre1, tA1, tB1, tArr;
-  uniform float uMix0, uMix1, uSet, uRad0, uRad1, uT, uTint, uFire, uPerim;
+  uniform float uMix0, uMix1, uSet, uRad0, uRad1, uOk0, uOk1, uT, uTint, uFire, uPerim;
   uniform vec2 uPx;
   ${RELIEF}
   float hours(vec4 a) { return (a.r * 255.0 * 256.0 + a.g * 255.0) / 4.0; }
@@ -230,11 +230,11 @@ export const FIRE_FRAG = /* glsl */ `
     if (age < 9.0) return mix(c2, c3, (age - 2.0) / 7.0);
     return mix(c3, c4, clamp((age - 9.0) / 18.0, 0.0, 1.0));
   }
-  vec3 scene(sampler2D pre, sampler2D a0, sampler2D a1, float m, float isRad, vec4 A, float age, bool burned) {
+  vec3 scene(sampler2D pre, sampler2D a0, sampler2D a1, float m, float isRad, float ok, vec4 A, float age, bool burned) {
     vec3 b = texture2D(pre, vUv).rgb;
     float l = dot(b, LW);
     vec3 col = mix(vec3(l), b, mix(0.55, 1.0, isRad)) * mix(0.85, 1.0, isRad) + 0.02;
-    if (burned && age >= 0.0) {
+    if (burned && age >= 0.0 && ok > .5) {
       vec3 af = mix(texture2D(a0, vUv).rgb, texture2D(a1, vUv).rgb, m);
       float la = dot(af, LW);
       vec3 tinted = isRad > .5 ? mix(af, vec3(la) * vec3(1.25, .62, .5), .55) : mix(af, af * vec3(1.35, .62, .5) + vec3(.05, 0., 0.), .55);
@@ -246,8 +246,8 @@ export const FIRE_FRAG = /* glsl */ `
     vec4 A = texture2D(tArr, vUv);
     bool burned = A.b > .5;
     float age = uT - hours(A);
-    vec3 s0 = scene(tPre0, tA0, tB0, uMix0, uRad0, A, age, burned);
-    vec3 s1 = scene(tPre1, tA1, tB1, uMix1, uRad1, A, age, burned);
+    vec3 s0 = scene(tPre0, tA0, tB0, uMix0, uRad0, uOk0, A, age, burned);
+    vec3 s1 = scene(tPre1, tA1, tB1, uMix1, uRad1, uOk1, A, age, burned);
     vec3 col = mix(s0, s1, uSet);
     if (burned && age >= 0.0 && uFire > 0.001) {
       float k = exp(-age / 16.0);

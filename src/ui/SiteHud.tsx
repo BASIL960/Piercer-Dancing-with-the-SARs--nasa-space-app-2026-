@@ -1,10 +1,12 @@
 import { Children, cloneElement, Fragment, isValidElement, useEffect, useRef, useState, type CSSProperties, type ReactElement, type ReactNode } from "react";
-import { DAY, HOUR, type JazanData, type NepalData, type OregonData, type SiteId } from "../data";
+import { DAY, fmtIso, HOUR, type JazanData, type NepalData, type OregonData, type SiteId } from "../data";
 import { currentChapter, useStore } from "../store";
 import { JAZAN_T0, NEPAL_T0, ORDER, OREGON_T0, PLACES } from "../story";
 import { area, pct, Tags, useEngine, useSites, useStoryTime } from "./bits";
 import { COPY, fmtPairLabel, JAZAN_RAIN_DAY, LAYER_INFO, type Ctx } from "./copy";
 import { Icon, PLACE_ACCENT } from "./icons";
+import { mapShows } from "./mapShows";
+import { PANEL_ART, type PanelArt } from "./panelArt";
 import { Timeline } from "./Timeline";
 
 // figures with a unit, and clock times, stand out in the reading text in the place's colour
@@ -36,7 +38,8 @@ function Readout({ id, t }: { id: SiteId; t: number }) {
   const sites = useSites();
   const layer = useStore((s) => s.layer);
   const pass = useStore((s) => s.pass);
-  const items: [string, string, string][] = [];
+  // [label, value, evidence kind, optional context line]
+  const items: [string, string, string, string?][] = [];
   if (id === "nepal") {
     const d = sites.nepal as NepalData, m = (t - NEPAL_T0) / 60000;
     if (layer === "radar") items.push(["Radar pair", fmtPairLabel(d, t), "measured"]);
@@ -65,16 +68,19 @@ function Readout({ id, t }: { id: SiteId; t: number }) {
   if (id === "jazan") {
     const d = sites.jazan as JazanData;
     const r = JAZAN_RAIN_DAY(d, t);
-    if (r) items.push(["Rain that day", `${r.mm.toFixed(1)} mm avg · ${Math.round(r.max)} max`, "measured"]);
+    if (r) items.push(["Rain that day", `${r.mm.toFixed(1)} mm`, "measured", `study-area average · ${Math.round(r.max)} mm in the wettest cell`]);
     const i = Math.max(0, Math.min(d.season.green_new_plain.length - 1, Math.floor((t - JAZAN_T0) / DAY - 10.5 / 24)));
-    items.push(["Newly green plain", `${area(d.season.green_new_plain[i])} km²`, "derived"]);
-    const g = d.gcov.filter((x) => x.when === pass && Date.parse(`${x.date}T00:00:00Z`) - 3 * HOUR + (pass === "dusk" ? 18.65 : 5.65) * HOUR <= t).pop();
-    if (g) items.push([`Wet ground, last ${pass} pass`, `${pct(g.brighter)}% of plain`, "derived"]);
+    items.push(["Newly green since June", `${area(d.season.green_new_plain[i])} km²`, "derived", "of the coastal plain, from clear photos"]);
+    // the wet-ground share belongs to the radar views; it names the pass it comes from
+    if (layer === "wet" || layer === "season") {
+      const g = d.gcov.filter((x) => x.when === pass && Date.parse(`${x.date}T00:00:00Z`) - 3 * HOUR + (pass === "dusk" ? 18.65 : 5.65) * HOUR <= t).pop();
+      if (g) items.push(["Wet ground", `${pct(g.brighter)}% of plain`, "derived", `${pass} pass, ${fmtIso(g.date)}`]);
+    }
   }
   if (!items.length) return null;
   return (
     <dl className="readout">
-      {items.map(([k, v, kind]) => <div key={k} className={kind}><dt>{k}</dt><dd>{v}{kind === "interpolated" && <small> est.</small>}</dd></div>)}
+      {items.map(([k, v, kind, sub]) => <div key={k} className={kind}><dt>{k}</dt><dd>{v}{kind === "interpolated" && <small> est.</small>}{sub && <span className="sub">{sub}</span>}</dd></div>)}
     </dl>
   );
 }
@@ -95,6 +101,11 @@ function Layers({ id }: { id: SiteId }) {
   const legend = (L?.legend ?? []).filter(([, txt]) => !(ch.fx?.fire === 0 && FIRE_ONLY.has(txt)) && !(ch.fx?.tint === 0 && txt === "Burned ground (tinted photo)"));
   if (ch.overlays?.perimeter && st.overlays) legend.push(["perimeter", "Official fire perimeter (NIFC)"]);
   const passes = id === "jazan" && ["change", "wet", "freq", "season"].includes(st.layer);
+  const sites = useSites();
+  const t = useStoryTime();
+  const shows = mapShows(id, st.layer, t, st.pass, sites);
+  // the words of this chapter compare one pass; say so when the switch shows the other
+  const offPass = passes && ch.onePass && ch.pass && ch.pass !== st.pass && st.layer === ch.layer;
   return (
     <div className="layers">
       <div className="layer-head"><span>Map view</span>{st.layer !== ch.layer && <button className="link-btn" onClick={() => st.setLayer(ch.layer)}>Back to {info[ch.layer].name}</button>}<button className="hide-btn" onClick={() => st.setPanelOpen(false)} aria-label="Hide the map view panel" title="Hide panel">Hide</button></div>
@@ -120,6 +131,14 @@ function Layers({ id }: { id: SiteId }) {
           {legend.map(([c, txt]) => <p key={txt}><i className={c === "perimeter" ? "dashed" : undefined} style={c === "perimeter" ? undefined : { background: c }} />{txt}</p>)}
           <p className="src-line">{L.src}</p>
         </div>
+      )}
+      {shows && (
+        <p className={`shows${shows.none ? " none" : ""}`}>
+          <span>{shows.none ? "Not yet" : "Map shows"}</span>
+          <span>{shows.text}{shows.fixed && " It does not change with the timeline."}</span>
+          {offPass && <span /> }
+          {offPass && <span>The text describes the {ch.pass} pass. <button className="link-btn" onClick={() => st.setPass(ch.pass!)}>Show the {ch.pass} pass</button></span>}
+        </p>
       )}
     </div>
   );
@@ -150,6 +169,23 @@ function Relief({ id }: { id: SiteId }) {
   return <p ref={ref} className="scale" aria-hidden="true" />;
 }
 
+/**
+ * The chapter's picture behind the story text: the new one dissolves in over the one before. It is decoration
+ * with a caption (in the story foot), so screen readers skip it.
+ */
+function StoryArt({ art }: { art: PanelArt | undefined }) {
+  const [layers, setLayers] = useState<PanelArt[]>(art ? [art] : []);
+  useEffect(() => {
+    if (!art) { setLayers([]); return; }
+    setLayers((l) => (l[l.length - 1]?.src === art.src ? l : [...l.slice(-1), art]));
+  }, [art]);
+  return (
+    <div className="story-art" aria-hidden="true">
+      {layers.map((a, i) => <div key={a.src} className={`art-layer${i === layers.length - 1 ? " top" : ""}`} style={{ backgroundImage: `url("${a.src}")`, backgroundPosition: a.focus }} />)}
+    </div>
+  );
+}
+
 /** Plays the timeline on from this note, started by the visitor, never by the page. It is the timeline's own play. */
 function PlayPart() {
   const playing = useStore((s) => s.playing);
@@ -165,8 +201,8 @@ function PlayPart() {
   return (
     <button className="play-part" onClick={go} aria-pressed={playing}>
       <span className="pp-icon">{playing ? <Icon.pause size={12} /> : <Icon.play size={12} />}</span>
-      {playing ? "Pause" : "Watch it happen"}
-      <span className="pp-hint">Plays on through the timeline, stopping briefly at each note</span>
+      <span className="pp-label">{playing ? "Pause" : "Watch it happen"}</span>
+      <span className="pp-hint">{playing ? "playing through the timeline" : "plays on, pausing at each note"}</span>
     </button>
   );
 }
@@ -182,6 +218,7 @@ export function SiteHud() {
   const place = PLACES[siteId];
   const ch = place.chapters[chapter];
   const copy = COPY[siteId][ch.id];
+  const art = PANEL_ART[siteId][ch.id];
   const ctx: Ctx = { sites, t, pass, setTime: (v) => st.setTime(v, true) };
   const isLast = chapter === place.chapters.length - 1;
   const nextSite = ORDER[ORDER.indexOf(siteId) + 1];
@@ -198,16 +235,22 @@ export function SiteHud() {
       {!storyOpen && <button className="pane-tab story-tab" onClick={() => st.setStoryOpen(true)}>Show the story</button>}
       {!panelOpen && <button className="pane-tab panel-tab" onClick={() => st.setPanelOpen(true)}>Map view</button>}
       <article className="story" ref={body} hidden={!storyOpen}>
+        <StoryArt art={art} />
         <div className="story-inner" key={`${siteId}-${chapter}`}>
           <div className="story-top"><p className="kicker">{copy.kicker}</p><button className="hide-btn" onClick={() => st.setStoryOpen(false)} aria-label="Hide the story text" title="Hide the text">Hide</button></div>
+          <p className="coord" aria-label="Where the map is centred">
+            {`${Math.abs(ch.view.at[0]).toFixed(2)}° ${ch.view.at[0] >= 0 ? "N" : "S"}  ${Math.abs(ch.view.at[1]).toFixed(2)}° ${ch.view.at[1] >= 0 ? "E" : "W"}`}
+            <span>{chapter + 1} / {place.chapters.length}</span>
+          </p>
           <h1>{copy.title}</h1>
           <div className="body">{enrich(copy.body(ctx))}</div>
           <div className="story-foot">
             <Tags kinds={copy.tags} />
-            <PlayPart />
+            {art &&<p className="art-cap"><span>Behind the text</span>{art.caption}</p>}
           </div>
         </div>
         <nav className="chapters" aria-label={`Chapters of ${place.name}`}>
+          <PlayPart />
           <ol>
             {place.chapters.map((c, i) => (
               <li key={c.id}>
@@ -220,7 +263,7 @@ export function SiteHud() {
           <div className="steps">
             {/* after a mouse click the button lets go of focus, so Space then plays and pauses instead of pressing it again */}
             <button className="ghost" onClick={(e) => { st.prev(); if (e.detail) e.currentTarget.blur(); }}>Back</button>
-            <button className="primary" onClick={(e) => { st.next(); if (e.detail) e.currentTarget.blur(); }}>
+            <button className="primary" title={isLast ? undefined : COPY[siteId][place.chapters[chapter + 1].id].title} onClick={(e) => { st.next(); if (e.detail) e.currentTarget.blur(); }}>
               {isLast ? (nextSite ? `Next: ${PLACES[nextSite].speed.toLowerCase()}, ${PLACES[nextSite].name}` : "The whole season") : `Next: ${COPY[siteId][place.chapters[chapter + 1].id].title}`}
             </button>
           </div>

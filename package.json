@@ -12,6 +12,7 @@
     "data:research": "node scripts/stories/fetch-research.mjs",
     "data:globe": "node scripts/stories/globe.mjs",
     "data:build": "node scripts/stories/build.mjs",
+    "data:panel-art": "node scripts/stories/panel-art.mjs",
     "data:verify": "node scripts/stories/check-georef.mjs && node scripts/stories/verify.mjs",
     "data": "npm run data:research && npm run data:globe && npm run data:build && npm run data:verify",
     "check": "node scripts/check-journey.mjs"

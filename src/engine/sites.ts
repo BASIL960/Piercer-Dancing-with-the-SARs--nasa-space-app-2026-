@@ -108,7 +108,7 @@ export abstract class SiteScene {
 
 // ---------------------------------------------------------------- Big Grass Fire
 type FireSet = "tc" | "fc" | "rad";
-const OREGON_AFTER: Record<FireSet, { pre: string; after: [string, number][] }> = {
+export const OREGON_AFTER: Record<FireSet, { pre: string; after: [string, number][] }> = {
   tc: { pre: "tc_pre.webp", after: [["tc_post.webp", Date.UTC(2026, 7, 30)], ["tc_sep17.webp", Date.UTC(2026, 8, 17)], ["tc_oct07.webp", Date.UTC(2026, 9, 7)], ["tc_oct24.webp", Date.UTC(2026, 9, 24)]] },
   fc: { pre: "fc_pre.webp", after: [["fc_post.webp", Date.UTC(2026, 7, 30)], ["fc_sep17.webp", Date.UTC(2026, 8, 17)], ["fc_oct07.webp", Date.UTC(2026, 9, 7)], ["fc_oct24.webp", Date.UTC(2026, 9, 24)]] },
   rad: { pre: "radar_2026-07-16.webp", after: [["radar_2026-08-21.webp", Date.UTC(2026, 7, 21)], ["radar_2026-09-26.webp", Date.UTC(2026, 8, 26)], ["radar_2026-10-20.webp", Date.UTC(2026, 9, 20)]] },
@@ -122,7 +122,7 @@ export class FireScene extends SiteScene {
     const b = tex.blank;
     this.addDetail(h.fine, FIRE_FRAG, {
       tPre0: { value: b }, tA0: { value: b }, tB0: { value: b }, tPre1: { value: b }, tA1: { value: b }, tB1: { value: b }, tArr: { value: b },
-      uMix0: { value: 0 }, uMix1: { value: 0 }, uSet: { value: 1 }, uRad0: { value: 0 }, uRad1: { value: 0 },
+      uMix0: { value: 0 }, uMix1: { value: 0 }, uSet: { value: 1 }, uRad0: { value: 0 }, uRad1: { value: 0 }, uOk0: { value: 1 }, uOk1: { value: 1 },
       uT: { value: 0 }, uTint: { value: 1 }, uFire: { value: 1 }, uPerim: { value: 0 },
       uPx: { value: new THREE.Vector2(1 / data.detail.W, 1 / data.detail.H) },
     });
@@ -143,12 +143,18 @@ export class FireScene extends SiteScene {
       void this.tex.load(this.url(S.after[i][0])).catch(() => undefined);
     }
   }
+  /**
+   * Binds one image set for story time t. The after-image is the latest one acquired by t, never a blend toward a
+   * later date. The photo sets reveal it along the estimated fire spread (an illustration, said so in the legend);
+   * the radar set shows no burned ground before its first pass after the fire (21 August), because NISAR had no
+   * pass over the fire in between and the map must not show an echo nobody had recorded yet.
+   */
   private bind(k: 0 | 1, set: FireSet, t: number) {
     const u = this.detMat.uniforms, S = OREGON_AFTER[set], at = S.after;
     let i = 0;
-    while (i < at.length - 1 && t > at[i + 1][1]) i++;
-    const j = Math.min(i + 1, at.length - 1);
-    const m = j === i ? 0 : clamp((t - at[i][1]) / (at[j][1] - at[i][1]), 0, 1);
+    while (i < at.length - 1 && t >= at[i + 1][1]) i++;
+    const j = i, m = 0;
+    u[`uOk${k}`].value = set === "rad" && t < at[0][1] ? 0 : 1;
     const g = (f: string) => this.tex.get(this.url(f));
     const pre = g(S.pre), a0 = g(at[i][0]), a1 = g(at[j][0]);
     u[`tPre${k}`].value = pre ?? this.tex.blank;
@@ -173,7 +179,8 @@ export class FireScene extends SiteScene {
     u.tArr.value = this.tex.get(this.url("arrival.png"), { data: true }) ?? this.tex.blank;
     u.uT.value = (f.t - OREGON_T0) / HOUR;
     const k = 1 - Math.exp(-f.dt * 4);
-    this.fire = lerp(this.fire, f.chapter?.fx?.fire ?? 1, k);
+    // the estimated fire spread is drawn over the photos only: over radar it would read as a radar measurement
+    this.fire = lerp(this.fire, want === "rad" ? 0 : f.chapter?.fx?.fire ?? 1, k);
     this.tint = lerp(this.tint, f.chapter?.fx?.tint ?? 1, k);
     u.uFire.value = this.fire; u.uTint.value = this.tint;
     return true;
