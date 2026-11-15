@@ -648,29 +648,50 @@ kbd { font: inherit; font-size: 0.75em; border: 1px solid var(--sand-3); border-
 /* ---------------------------------------------------------------- the radar diagram */
 .rd { margin: 0; display: grid; gap: 1rem; align-self: center; padding: 1.4rem 1.4rem 1.1rem; border-radius: 4px; background: var(--ticks), rgba(7, 11, 29, 0.8); box-shadow: inset 0 0 0 1px rgba(236, 220, 185, 0.08); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
 .rd-svg { width: 100%; height: auto; overflow: visible; font-family: var(--text); }
-.rd-svg text { font-size: 12px; fill: var(--sand-2); }
+/* every label sits on a dark halo, so no line or ring can run through its letters */
+.rd-svg text { font-size: 12px; fill: var(--sand-2); paint-order: stroke; stroke: rgba(7, 11, 29, 0.9); stroke-width: 4px; stroke-linejoin: round; }
 .rd-orbit { fill: none; stroke: var(--sand-3); stroke-width: 1; stroke-dasharray: 2 5; }
+.rd-pulse, .rd-echo { transform-box: fill-box; transform-origin: center; vector-effect: non-scaling-stroke; }
 .rd-pulse { fill: none; stroke: var(--signal); stroke-width: 2.2; opacity: 0; }
 .rd-echo { fill: none; stroke: var(--sand); stroke-width: 1.6; stroke-dasharray: 5 4; opacity: 0; }
-.rd-cloud ellipse { fill: rgba(236, 220, 185, 0.13); }
-.rd-cloud ellipse:nth-child(2) { fill: rgba(236, 220, 185, 0.19); }
+.rd-cloud-body { fill: url(#rd-cloud-g); }
+.rd-cloud-rim { fill: none; stroke: rgba(246, 236, 212, 0.4); stroke-width: 1.2; stroke-linecap: round; }
+.rd-cloud-shade { fill: rgba(0, 0, 0, 0.35); }
 .rd-cloud { animation: rd-drift 14s ease-in-out infinite alternate; }
 @keyframes rd-drift { to { transform: translateX(-16px); } }
 .rd-sight { fill: none; stroke: var(--sand-2); stroke-width: 1.2; stroke-dasharray: 3 4; }
 .rd-stop { stroke: #f2a36a; stroke-width: 1.8; stroke-linecap: round; }
 .rd-svg .rd-camera text { font-size: 11px; fill: var(--sand-3); }
 .rd-ground { fill: none; stroke: var(--sand-2); stroke-width: 1.4; }
-.rd-crop path { stroke: #9ccf6a; stroke-width: 1.6; stroke-linecap: round; }
-.rd-water path { fill: var(--water); fill-opacity: .85; }
+.rd-hill { fill: url(#rd-hill-g); }
+.rd-earth { fill: #0a1027; }
+.rd-soil { fill: url(#rd-soil-g); }
+.rd-strata path { fill: none; stroke: rgba(236, 220, 185, 0.1); stroke-width: 1; stroke-dasharray: 6 5; }
+.rd-farm path { fill: rgba(236, 220, 185, 0.5); }
+.rd-farm .rd-farm-door { fill: rgba(7, 11, 29, 0.8); }
+.rd-river { fill: #5cc6e6; }
+.rd-crop path { stroke: #9ccf6a; stroke-width: 1.3; stroke-linecap: round; }
+.rd-water { transform-box: fill-box; transform-origin: left center; }
+.rd-water-shine { fill: none; stroke: rgba(255, 255, 255, 0.55); stroke-width: 1; stroke-linecap: round; }
+.rd-trees circle { fill: #4f7d4c; }
+.rd-trunk { stroke: #7a6a4a; stroke-width: 1.4; }
 .rd-scatter circle { fill: var(--sand); }
 .rd-svg .rd-meanwhile text { font-size: 11px; fill: var(--water); }
-.rd-dish { fill: none; stroke: var(--sand); stroke-width: 2.4; stroke-linecap: round; }
-.rd-body { fill: var(--sand); }
-.rd-panel { fill: none; stroke: var(--sand-2); stroke-width: 1.4; }
+/* NISAR */
+.rd-wing rect { fill: #1d3566; stroke: #6f8fc7; stroke-width: .8; }
+.rd-yoke { stroke: var(--sand-2); stroke-width: 1.4; }
+.rd-bus { fill: #c9ccd4; stroke: #7d8291; stroke-width: .8; }
+.rd-instr { fill: #d8a844; stroke: #f0cf7a; stroke-width: .8; }
+.rd-boom { stroke: #e6e8ee; stroke-width: 1.6; stroke-linecap: round; }
+.rd-drum-back { fill: rgba(216, 168, 68, 0.18); stroke: #b9913c; stroke-width: 1; }
+.rd-drum-side { stroke: #b9913c; stroke-width: 1; }
+.rd-drum { fill: rgba(216, 168, 68, 0.28); stroke: #f0cf7a; stroke-width: 1.8; }
+.rd-mesh { fill: none; stroke: rgba(240, 207, 122, 0.55); stroke-width: .7; }
 .rd-svg .rd-name { fill: var(--sand); font-weight: 500; font-size: 13px; }
 .rd-svg .rd-alt { fill: var(--sand-3); font-weight: 300; font-size: 11px; }
 .rd-svg .rd-pass { fill: var(--signal); font-family: var(--mono); font-size: 11px; }
-.rd-svg .rd-note { font-size: 10.5px; fill: var(--sand-3); letter-spacing: .04em; }
+.rd-svg .rd-note text { font-size: 10.5px; fill: var(--sand-3); letter-spacing: .04em; }
+.rd-note path { stroke: var(--sand-3); stroke-width: 1; }
 .rd-svg .rd-rowlabel { font-family: var(--mono); font-size: 10.5px; fill: var(--sand-2); }
 .rd-axis { stroke: var(--line); stroke-width: 1; }
 .rd-w { fill: none; stroke: var(--sand); stroke-width: 1.5; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
@@ -745,7 +766,7 @@ kbd { font: inherit; font-size: 0.75em; border: 1px solid var(--sand-3); border-
 .chapters .play-part[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--signal); }
 .art-cap { margin-top: 0.9rem; font-size: 0.7rem; line-height: 1.45; color: var(--sand-3); }
 .art-cap span { display: block; font-family: var(--mono); font-size: 0.62rem; color: var(--sand-2); letter-spacing: .04em; margin-bottom: 0.1rem; }
-.art-cap span::before { content: "◩ "; color: var(--signal); }
+.art-cap span::before { content: "â—© "; color: var(--signal); }
 .chapters li button.now::after { background: var(--signal); }
 .site::before { background: linear-gradient(to top, rgba(7, 11, 29, 0.8), rgba(7, 11, 29, 0) 11rem); }
 
