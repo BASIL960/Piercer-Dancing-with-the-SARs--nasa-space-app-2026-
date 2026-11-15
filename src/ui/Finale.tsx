@@ -20,7 +20,7 @@ export function Finale() {
       passes: [...new Set(n.radar.flatMap((r) => [r.d1, r.d2]))].map(NISAR_PASS_NEPAL),
     },
     {
-      id: "oregon", label: "Big Grass",
+      id: "oregon", label: "Oregon's Fire",
       spans: [{ a: Date.UTC(2026, 6, 23), b: Date.UTC(2026, 7, 28), kind: "fire", label: "Fire, 23 Jul – 28 Aug" }],
       passes: [...new Set([...Object.keys(o.std.coh).flatMap((k) => [k.slice(0, 8), k.slice(9)]), ...Object.keys(o.std.hv)])].map(d8),
     },
@@ -52,7 +52,7 @@ export function Finale() {
           <article>
             <h2><span>{PLACES.oregon.speed}</span> Beyond the smoke</h2>
             <p>Across the fire the surface changed where it burned hottest, and two months later the shrub signal was still down while the photos looked green.</p>
-            <CompareBars label="Big Grass Fire: share of ground changed between 16 July and 21 August" rows={[
+            <CompareBars label="Oregon's Fire: share of ground changed between 16 July and 21 August" rows={[
               { name: "Burned hottest", v: fc["t0.2"].hot, lo: fc["t0.25"].hot, hi: fc["t0.15"].hot, kind: "fire" },
               { name: "Unburned outside", v: fc["t0.2"].control, lo: fc["t0.25"].control, hi: fc["t0.15"].control, kind: "control" },
             ]} />

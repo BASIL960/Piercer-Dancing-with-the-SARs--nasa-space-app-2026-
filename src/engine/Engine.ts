@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { dataUrl, loadTerrain, SITE_IDS, type NepalData, type SiteId, type Sites } from "../data";
-import { currentChapter, useStore } from "../store";
+import { chapterAt, currentChapter, useStore } from "../store";
 import { NEPAL_T0, PLACES, type ViewSpec } from "../story";
 import { DEG, localFrame, patchGeometry, toLatLon, toVec } from "./geo";
 import { ATMOSPHERE_FRAG, ATMOSPHERE_VERT, CLOUD_FRAG, GLOBE_FRAG, STAR_FRAG, STAR_VERT, WORLD_VERT } from "./shaders";
@@ -13,7 +13,7 @@ export interface View { lat: number; lon: number; dist: number; tilt: number; he
 
 const R_KM = 6371;
 const FOV = 36;
-const INTRO: View = { lat: 18, lon: 30, dist: 4.4, tilt: 0, heading: 0, sx: 0.2, sy: 0 };
+const INTRO: View = { lat: 24, lon: 40, dist: 1.6, tilt: 0, heading: 0, sx: 0.3, sy: -0.55 };
 const FINALE: View = { lat: 22, lon: 48, dist: 2.5, tilt: 0, heading: 0, sx: -0.32, sy: 0.02 };
 const SUN = toVec(20, 60).normalize();
 
@@ -158,7 +158,7 @@ export class Engine {
   }
   private storyView(): View {
     const st = useStore.getState();
-    if (st.phase === "intro") return { ...INTRO, sx: this.size.w <= 900 ? 0 : INTRO.sx, sy: this.size.w <= 900 ? -0.25 : 0 };
+    if (st.phase === "intro") return { ...INTRO, sx: this.size.w <= 900 ? 0 : INTRO.sx, sy: this.size.w <= 900 ? -0.7 : INTRO.sy };
     if (st.phase === "finale") return { ...FINALE, sx: this.size.w <= 900 ? 0 : FINALE.sx, sy: this.size.w <= 900 ? -0.3 : FINALE.sy, dist: this.size.w <= 900 ? 3.4 : FINALE.dist };
     if (st.phase === "hub") {
       const id = st.hoverSite ?? st.siteId;
@@ -199,8 +199,22 @@ export class Engine {
     }
   }
   private lastHover: SiteId | null = null;
+  private introScroll = 0;
+  private realDt = 0;
+  private waited = 3;
+  /** how far the landing page has scrolled, 0 to 1 */
+  setIntroScroll(p: number) { this.introScroll = clamp(p, 0, 1); }
   private syncHub(dt: number) {
     const st = useStore.getState();
+    // the landing: a close Earth turning under the title, drawing back as the page scrolls
+    if (st.phase === "intro") {
+      this.lastHover = null;
+      if (!this.flight && !st.reducedMotion) {
+        this.goal.lon = wrap(this.goal.lon + dt * 2.2);
+        this.goal.dist = lerp(this.goal.dist, INTRO.dist + this.introScroll * 1.4, Math.min(1, dt * 4));
+      }
+      return;
+    }
     if (st.phase !== "hub") { this.lastHover = null; return; }
     if (st.hoverSite !== this.lastHover) {
       this.lastHover = st.hoverSite;
@@ -236,8 +250,15 @@ export class Engine {
     if (st.phase !== "site") return;
     const tl = PLACES[st.siteId].timeline;
     if (st.playing && st.playTo !== null) {
-      const t = st.t + tl.rate(st.t) * dt * (st.reducedMotion ? 4 : 1);
-      if (t >= st.playTo) useStore.setState({ t: st.playTo, playing: false, playTo: null });
+      // resting on a note's point: time waits for the rest, and for the camera to arrive (at most 3 s more)
+      if (st.hold > 0) { this.waited = 0; useStore.setState({ hold: Math.max(0, st.hold - dt) }); return; }
+      if (this.flight && this.waited < 3) { this.waited += dt; return; }
+      const t = st.t + tl.rate(st.t) * dt * st.speed * (st.reducedMotion ? 4 : 1);
+      // crossing the next note's point: stop exactly on it, open that note, rest
+      const chs = PLACES[st.siteId].chapters;
+      const k = chapterAt(st.siteId, st.t) + 1;
+      if (k < chs.length && t >= chs[k].t && st.t < chs[k].t) st.reach(k);
+      else if (t >= st.playTo) useStore.setState({ t: st.playTo, playing: false, playTo: null });
       else useStore.setState({ t });
     } else if (st.tTarget !== null) {
       const t = lerp(st.t, st.tTarget, 1 - Math.exp(-dt * 7));
@@ -249,7 +270,7 @@ export class Engine {
   private updateView(dt: number) {
     const f = this.flight;
     if (f) {
-      f.t += dt;
+      f.t += this.realDt;
       const raw = clamp(f.t / f.dur, 0, 1), s = ease(raw);
       const diving = f.to.dist < f.from.dist;
       const lateral = f.lowEnds ? smooth(0.12, 0.88, raw) : diving ? 1 - Math.pow(1 - s, 3) : Math.pow(s, 3);
@@ -328,14 +349,17 @@ export class Engine {
 
   private frame = (now: number) => {
     if (this.disposed) return;
-    const dt = Math.min(0.05, (now - this.last) / 1000);
+    const raw = Math.max(0, (now - this.last) / 1000);
+    const dt = Math.min(0.05, raw);
     this.last = now;
     this.time += dt;
     this.tex.frame++;
     this.syncStory();
     this.syncHub(dt);
     this.follow();
-    this.advanceTime(dt);
+    // story time and camera flights keep to the wall clock, so a slow machine plays at the chosen speed, not slower
+    this.realDt = Math.min(0.25, raw);
+    this.advanceTime(this.realDt);
     this.updateView(dt);
     const st = useStore.getState();
     const fc = this.focus();
@@ -382,6 +406,14 @@ export class Engine {
     p.project(this.camera);
     const onScreen = p.z < 1 && p.z > -1;
     return { x: (p.x * 0.5 + 0.5) * this.size.w, y: (-p.y * 0.5 + 0.5) * this.size.h, front: front && onScreen };
+  }
+  /** Screen position and on-screen radius of the whole Earth, for keeping interface cards off the globe. */
+  globeOnScreen() {
+    const c = new THREE.Vector3(0, 0, 0).project(this.camera);
+    const x = (c.x * 0.5 + 0.5) * this.size.w, y = (-c.y * 0.5 + 0.5) * this.size.h;
+    const d = this.camera.position.length();
+    const r = (Math.asin(Math.min(1, 1 / d)) / ((this.camera.fov * DEG) / 2)) * (this.size.h / 2);
+    return { x, y, r };
   }
   get distance() { return this.view.dist; }
   get flying() { return this.flight !== null; }

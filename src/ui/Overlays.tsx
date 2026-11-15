@@ -25,8 +25,10 @@ export function Overlays() {
   const ignition = phase === "site" && siteId === "oregon" && ov.ignition;
 
   useEffect(() => {
-    if (!engine || phase !== "site") return;
-    const el = svg.current!;
+    // runs again whenever the labels come back: the SVG is a new element then and must be positioned afresh
+    if (!engine || phase !== "site" || !shown) return;
+    const el = svg.current;
+    if (!el) return;
     const id = siteId as SiteId;
     const nodes = {
       places: [...el.querySelectorAll<SVGGElement>("[data-place]")],
@@ -87,7 +89,7 @@ export function Overlays() {
         nodes.ign.style.display = p.front ? "" : "none";
       }
     });
-  }, [engine, phase, siteId, chapter, sites, route, perim, ignition, places.length]);
+  }, [engine, phase, siteId, chapter, sites, route, perim, ignition, places.length, shown]);
 
   if (phase !== "site" || !shown) return null;
   return (

@@ -1,10 +1,36 @@
-import { useEffect, useRef, useState } from "react";
+import { Children, cloneElement, Fragment, isValidElement, useEffect, useRef, useState, type CSSProperties, type ReactElement, type ReactNode } from "react";
 import { DAY, HOUR, type JazanData, type NepalData, type OregonData, type SiteId } from "../data";
 import { currentChapter, useStore } from "../store";
 import { JAZAN_T0, NEPAL_T0, ORDER, OREGON_T0, PLACES } from "../story";
 import { area, pct, Tags, useEngine, useSites, useStoryTime } from "./bits";
 import { COPY, fmtPairLabel, JAZAN_RAIN_DAY, LAYER_INFO, type Ctx } from "./copy";
+import { Icon, PLACE_ACCENT } from "./icons";
 import { Timeline } from "./Timeline";
+
+// figures with a unit, and clock times, stand out in the reading text in the place's colour
+const FIG = /(\d{1,2}:\d{2}|\d[\d,]*(?:\.\d+)?\s?(?:km²|km|m³|mm|metres|m|%|minutes|hours|days|weeks|acres|deaths)(?![\w²³]))/g;
+function enrich(node: ReactNode): ReactNode {
+  const parts: ReactNode[] = [];
+  let buf = "";
+  const flush = () => {
+    if (!buf) return;
+    buf.split(FIG).forEach((x, i) => { if (x) parts.push(i % 2 ? <b key={`f${parts.length}`} className="fig">{x}</b> : x); });
+    buf = "";
+  };
+  Children.forEach(node, (c) => {
+    if (typeof c === "string" || typeof c === "number") { buf += String(c); return; }
+    flush();
+    // walk into plain elements (p, em, b); components such as <Num> already style their own numbers
+    if (isValidElement(c) && typeof c.type === "string" && c.props && (c.props as { className?: string }).className !== "note") {
+      const el = c as ReactElement<{ children?: ReactNode }>;
+      parts.push(cloneElement(el, { key: el.key ?? `e${parts.length}` }, enrich(el.props.children)));
+    } else if (isValidElement(c) && c.type === Fragment) {
+      parts.push(enrich((c as ReactElement<{ children?: ReactNode }>).props.children));
+    } else parts.push(isValidElement(c) && c.key == null ? cloneElement(c, { key: `c${parts.length}` }) : c);
+  });
+  flush();
+  return parts;
+}
 
 function Readout({ id, t }: { id: SiteId; t: number }) {
   const sites = useSites();
@@ -59,16 +85,20 @@ function Layers({ id }: { id: SiteId }) {
   const st = { ...useStore.getState(), layer, pass, rain, overlays };
   const ch = currentChapter({ siteId: id, chapter });
   const info = LAYER_INFO[id];
-  const offered = ch.layers ?? [ch.layer];
+  // every view of this place is always available; the chapter's own view is marked, not enforced
+  const offered = Object.keys(info);
   const L = info[st.layer] ?? info[ch.layer];
   const passes = id === "jazan" && ["change", "wet", "freq", "season"].includes(st.layer);
   return (
     <div className="layers">
-      {offered.length > 1 && (
-        <div className="segmented" role="group" aria-label="Map layer">
-          {offered.map((l) => <button key={l} aria-pressed={st.layer === l} onClick={() => st.setLayer(l)}>{info[l].name}</button>)}
-        </div>
-      )}
+      <div className="layer-head"><span>Map view</span>{st.layer !== ch.layer && <button className="link-btn" onClick={() => st.setLayer(ch.layer)}>Back to {info[ch.layer].name}</button>}<button className="hide-btn" onClick={() => st.setPanelOpen(false)} aria-label="Hide the map view panel" title="Hide panel">Hide</button></div>
+      <div className="viewgrid" role="group" aria-label="Map view">
+        {offered.map((l) => (
+          <button key={l} aria-pressed={st.layer === l} onClick={() => st.setLayer(l)}>
+            {info[l].name}{l === ch.layer && <i className="story-dot" title="The view this chapter is about" aria-label="(this chapter's view)" />}
+          </button>
+        ))}
+      </div>
       <div className="toggles">
         {passes && (
           <div className="segmented small" role="group" aria-label="Radar pass">
@@ -77,7 +107,7 @@ function Layers({ id }: { id: SiteId }) {
           </div>
         )}
         {id === "jazan" && <label className="check"><input type="checkbox" checked={st.rain} onChange={(e) => st.setRain(e.target.checked)} /> Rain</label>}
-        <label className="check"><input type="checkbox" checked={st.overlays} onChange={(e) => st.setOverlays(e.target.checked)} /> Labels</label>
+        <label className="check"><input type="checkbox" checked={st.overlays} onChange={(e) => st.setOverlays(e.target.checked)} /> Place labels</label>
       </div>
       {L && (
         <div className="legend">
@@ -106,6 +136,27 @@ function Relief({ id }: { id: SiteId }) {
   return <p ref={ref} className="scale" aria-hidden="true" />;
 }
 
+/** Plays the timeline on from this note, started by the visitor, never by the page. It is the timeline's own play. */
+function PlayPart() {
+  const playing = useStore((s) => s.playing);
+  const siteId = useStore((s) => s.siteId);
+  const chapter = useStore((s) => s.chapter);
+  const st = useStore.getState();
+  const go = () => {
+    if (st.playing) return st.setPlaying(false);
+    // at the very end, watching again starts from this note's point
+    if (st.t >= PLACES[siteId].timeline.end - 1) st.setChapter(chapter);
+    useStore.getState().setPlaying(true);
+  };
+  return (
+    <button className="play-part" onClick={go} aria-pressed={playing}>
+      <span className="pp-icon">{playing ? <Icon.pause size={12} /> : <Icon.play size={12} />}</span>
+      {playing ? "Pause" : "Watch it happen"}
+      <span className="pp-hint">Plays on through the timeline, stopping briefly at each note</span>
+    </button>
+  );
+}
+
 export function SiteHud() {
   const sites = useSites();
   const siteId = useStore((s) => s.siteId);
@@ -124,16 +175,23 @@ export function SiteHud() {
   const [arriving, setArriving] = useState(true);
   useEffect(() => { setArriving(true); const k = setTimeout(() => setArriving(false), st.reducedMotion ? 0 : 1400); return () => clearTimeout(k); }, [siteId]); // eslint-disable-line react-hooks/exhaustive-deps
   const body = useRef<HTMLDivElement>(null);
+  const storyOpen = useStore((s) => s.storyOpen);
+  const panelOpen = useStore((s) => s.panelOpen);
   useEffect(() => { body.current?.scrollTo({ top: 0 }); }, [siteId, chapter]);
 
   return (
-    <section className={`site site-${siteId}${arriving ? " arriving" : ""}`} aria-label={`${place.name}, ${place.where}`}>
-      <article className="story" ref={body}>
+    <section className={`site site-${siteId}${arriving ? " arriving" : ""}${storyOpen ? "" : " story-closed"}${panelOpen ? "" : " panel-closed"}`} aria-label={`${place.name}, ${place.where}`} style={{ "--accent": PLACE_ACCENT[siteId] } as CSSProperties}>
+      {!storyOpen && <button className="pane-tab story-tab" onClick={() => st.setStoryOpen(true)}>Show the story</button>}
+      {!panelOpen && <button className="pane-tab panel-tab" onClick={() => st.setPanelOpen(true)}>Map view</button>}
+      <article className="story" ref={body} hidden={!storyOpen}>
         <div className="story-inner" key={`${siteId}-${chapter}`}>
-          <p className="kicker">{copy.kicker}</p>
+          <div className="story-top"><p className="kicker">{copy.kicker}</p><button className="hide-btn" onClick={() => st.setStoryOpen(false)} aria-label="Hide the story text" title="Hide the text">Hide</button></div>
           <h1>{copy.title}</h1>
-          <div className="body">{copy.body(ctx)}</div>
-          <Tags kinds={copy.tags} />
+          <div className="body">{enrich(copy.body(ctx))}</div>
+          <div className="story-foot">
+            <Tags kinds={copy.tags} />
+            <PlayPart />
+          </div>
         </div>
         <nav className="chapters" aria-label={`Chapters of ${place.name}`}>
           <ol>
@@ -146,7 +204,7 @@ export function SiteHud() {
             ))}
           </ol>
           <div className="steps">
-            <button className="quiet" onClick={st.prev}>Back</button>
+            <button className="ghost" onClick={st.prev}>Back</button>
             <button className="primary" onClick={st.next}>
               {isLast ? (nextSite ? `Next: ${PLACES[nextSite].speed.toLowerCase()}, ${PLACES[nextSite].name}` : "The whole season") : `Next: ${COPY[siteId][place.chapters[chapter + 1].id].title}`}
             </button>
@@ -154,7 +212,7 @@ export function SiteHud() {
         </nav>
       </article>
 
-      <aside className="evidence" aria-label="Evidence">
+      <aside className="evidence" aria-label="Evidence" hidden={!panelOpen}>
         <Layers id={siteId} />
         <Readout id={siteId} t={t} />
         {copy.evidence && <div className="figure" key={`${siteId}-${chapter}`}>{copy.evidence(ctx)}</div>}

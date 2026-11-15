@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { Brand, PLACE_ACCENT } from "./icons";
 import { loadSites, SITE_IDS } from "../data";
 import { Engine } from "../engine/Engine";
 import { useStore } from "../store";
@@ -6,27 +7,39 @@ import { PLACES } from "../story";
 import { EngineContext } from "./bits";
 import { Finale } from "./Finale";
 import { Hub } from "./Hub";
-import { Intro } from "./Intro";
+import { Intro, Landing } from "./Intro";
 import { Overlays } from "./Overlays";
 import { SiteHud } from "./SiteHud";
 import { Sources } from "./Sources";
+import { MapHelp } from "./MapHelp";
 
 function Header() {
   const phase = useStore((s) => s.phase);
   const siteId = useStore((s) => s.siteId);
-  const { toHub, openSite, toFinale, setSourcesOpen } = useStore.getState();
+  const { toHub, openSite, toFinale, setSourcesOpen, setHelpOpen, toLanding } = useStore.getState();
   return (
     <header className="topbar">
-      <button className="brand" onClick={toHub} aria-label="Piercer: back to the globe">Piercer</button>
+      <button className="brand" onClick={toLanding} aria-label="Piercer: back to the start"><Brand /></button>
       <nav aria-label="Places">
-        {SITE_IDS.map((id) => (
-          <button key={id} aria-current={phase === "site" && siteId === id ? "page" : undefined} onClick={() => openSite(id)}>
-            <span className="speed">{PLACES[id].speed}</span> {PLACES[id].name}
-          </button>
-        ))}
-        <button aria-current={phase === "finale" ? "page" : undefined} onClick={toFinale}><span className="speed">All</span> The season</button>
+        <button className="nav-globe" aria-current={phase === "hub" ? "page" : undefined} onClick={toHub}>
+          <span className="nav-name">Globe</span>
+        </button>
+        <span className="nav-sep" aria-hidden="true" />
+        {SITE_IDS.map((id) => {
+          return (
+            <button key={id} style={{ "--accent": PLACE_ACCENT[id] } as CSSProperties} aria-current={phase === "site" && siteId === id ? "page" : undefined} onClick={() => openSite(id)}>
+              <span className="nav-text"><span className="speed">{PLACES[id].speed}</span><span className="nav-name">{PLACES[id].name}</span></span>
+            </button>
+          );
+        })}
+        <button style={{ "--accent": "var(--sand)" } as CSSProperties} aria-current={phase === "finale" ? "page" : undefined} onClick={toFinale}>
+          <span className="nav-text"><span className="speed">All three</span><span className="nav-name">The season</span></span>
+        </button>
       </nav>
-      <button className="quiet" onClick={() => setSourcesOpen(true)}>Sources</button>
+      <div className="top-actions">
+        <button className="icon-btn" onClick={() => setHelpOpen(true)}><span>Controls</span></button>
+        <button className="icon-btn" onClick={() => setSourcesOpen(true)}><span>Sources</span></button>
+      </div>
     </header>
   );
 }
@@ -38,6 +51,15 @@ export function App() {
   const ready = useStore((s) => s.ready);
   const error = useStore((s) => s.error);
   const sourcesOpen = useStore((s) => s.sourcesOpen);
+  const helpOpen = useStore((s) => s.helpOpen);
+
+  // the first time a visitor reaches the globe or a place, show how to move the map, once
+  useEffect(() => {
+    if (phase !== "hub" && phase !== "site") return;
+    let seen = false;
+    try { seen = localStorage.getItem("piercer.controls.seen") === "1"; localStorage.setItem("piercer.controls.seen", "1"); } catch { /* storage blocked: show it */ }
+    if (!seen) useStore.getState().setHelpOpen(true);
+  }, [phase]);
 
   useEffect(() => {
     let dead = false;
@@ -67,11 +89,12 @@ export function App() {
       const el = e.target as HTMLElement | null;
       if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT")) return;
       if (e.key === "Escape") {
-        if (st.sourcesOpen) st.setSourcesOpen(false);
+        if (st.helpOpen) st.setHelpOpen(false);
+        else if (st.sourcesOpen) st.setSourcesOpen(false);
         else if (st.phase === "site" || st.phase === "finale") st.toHub();
         return;
       }
-      if (st.sourcesOpen || !st.ready) return;
+      if (st.sourcesOpen || st.helpOpen || !st.ready) return;
       if (e.altKey && engine && e.key.startsWith("Arrow")) {
         engine.nudge(({ ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down" } as const)[e.key as "ArrowLeft"]);
         e.preventDefault(); return;
@@ -99,7 +122,8 @@ export function App() {
         ) : (
           <>
             {ready && phase !== "intro" && <Header />}
-            {phase === "intro" && <Intro />}
+            {phase === "intro" && !ready && <Intro />}
+            {ready && phase === "intro" && <Landing />}
             {ready && phase === "hub" && <Hub />}
             {ready && phase === "site" && <SiteHud />}
             {ready && phase === "finale" && <Finale />}
@@ -107,6 +131,7 @@ export function App() {
         )}
       </div>
       {sourcesOpen && <Sources />}
+      {helpOpen && <MapHelp />}
     </EngineContext.Provider>
   );
 }

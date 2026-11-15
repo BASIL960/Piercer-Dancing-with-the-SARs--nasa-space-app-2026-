@@ -7,9 +7,9 @@ const DATA: [string, string, string][] = [
   ["NISAR L2 GCOV (calibrated backscatter γ⁰)", "Wet ground (HH) in Jazan; shrub structure (HV) after the Oregon fire; radar views of the fire.", "NASA-ISRO NISAR, ASF DAAC. Never read from colour map tiles."],
   ["NASA HLS v2 (Landsat 8/9 + Sentinel-2)", "Photos, burn extent and severity (dNBR), stripped ground, green-up and open water (NDVI, MNDWI), with the Fmask cloud mask.", "NASA LP DAAC, via Microsoft Planetary Computer."],
   ["NASA GPM IMERG V07, Late run", "Rain over Jazan: daily, and every half hour before radar passes and on 10 storm days.", "NASA GES DISC. The Final run will replace it."],
-  ["NASA VIIRS 375 m active fire", "Day-by-day spread of the Big Grass Fire.", "NASA FIRMS / GIBS."],
+  ["NASA VIIRS 375 m active fire", "Day-by-day spread of Oregon's Fire.", "NASA FIRMS / GIBS."],
   ["Copernicus DEM GLO-30", "Terrain in the 3D view, the Nepal flood route, the Jazan coastal plain (0.5–250 m).", "ESA, AWS Open Data. Read here directly from the public tiles."],
-  ["NIFC fire perimeters", "The official Big Grass perimeter (575,163 acres).", "National Interagency Fire Center (reported)."],
+  ["NIFC fire perimeters", "The official perimeter of the fire, which NIFC names the Big Grass Fire (575,163 acres).", "National Interagency Fire Center (reported)."],
   ["Globe", "Blue Marble shaded relief and bathymetry.", "NASA Earth Observatory, via NASA GIBS."],
 ];
 

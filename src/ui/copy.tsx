@@ -51,7 +51,7 @@ export const EVENTS: Record<SiteId, StoryEvent[]> = {
     { t: O(10, 20), text: "NISAR: the shrub signal is still down where it burned hottest.", src: "NISAR GCOV", kind: "derived" },
   ],
   jazan: [
-    { t: J(8, 12), text: "The wettest day of the season over the study area.", src: "NASA IMERG", kind: "measured" },
+    { t: J(8, 12, 0), text: "The wettest day of the season over the study area.", src: "NASA IMERG", kind: "measured" },
     { t: J(8, 16), text: "Weather warning: moderate to heavy rain over several Jazan governorates.", src: "NCM via Dalil Saudi", href: "https://dalylsaudi.com/news457005.html", kind: "reported" },
     { t: J(8, 22), text: "Red alert for Jazan. Civil Defense tells people to keep out of wadi beds and flood channels.", src: "Dalil Saudi", href: "https://dalylsaudi.com/news456975.html", kind: "reported" },
     { t: J(8, 26), text: "Red alert until 21:00: heavy rain, hail and torrents in the mountain governorates.", src: "NCM via Dalil Saudi", href: "https://dalylsaudi.com/news456975.html", kind: "reported" },
@@ -153,7 +153,7 @@ const og = (c: Ctx) => c.sites.oregon as OregonData;
 const cohFire = (d: OregonData) => d.std.coh["20260716_20260821"];
 const OREGON: Record<string, ChapterCopy> = {
   spark: {
-    kicker: "Weeks · Big Grass Fire, Oregon–Idaho",
+    kicker: "Weeks · Oregon's Fire, Oregon–Idaho",
     title: "One lightning strike",
     tags: ["reported"],
     body: () => <>

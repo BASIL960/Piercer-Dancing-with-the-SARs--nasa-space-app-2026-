@@ -18,6 +18,13 @@ interface State {
   /** where a running animation of time is heading; null when time stands still */
   playTo: number | null;
   playing: boolean;
+  /** real seconds left to rest on a note's point during playback */
+  hold: number;
+  /** playback speed multiplier, chosen by the visitor */
+  speed: number;
+  /** the reading panel on the left and the map-view panel on the right */
+  storyOpen: boolean;
+  panelOpen: boolean;
   /** smooth jumps of time (clicking an event, a chart point) */
   tTarget: number | null;
   layer: Layer;
@@ -31,6 +38,8 @@ interface State {
   hoverSite: SiteId | null;
   visited: Partial<Record<SiteId, number>>;
   sourcesOpen: boolean;
+  /** the "moving around the map" card */
+  helpOpen: boolean;
   reducedMotion: boolean;
 
   setSites(s: Sites): void;
@@ -46,6 +55,12 @@ interface State {
   toFinale(): void;
   setTime(t: number, smooth?: boolean): void;
   setPlaying(p: boolean): void;
+  /** playback has reached note i: open it at its point and rest there for a moment */
+  reach(i: number): void;
+  setSpeed(s: number): void;
+  setStoryOpen(o: boolean): void;
+  setPanelOpen(o: boolean): void;
+  toLanding(): void;
   setLayer(l: Layer): void;
   setPass(p: "dusk" | "dawn"): void;
   setRain(r: boolean): void;
@@ -54,21 +69,28 @@ interface State {
   recenter(): void;
   setHoverSite(id: SiteId | null): void;
   setSourcesOpen(o: boolean): void;
+  setHelpOpen(o: boolean): void;
 }
 
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 const reduced = typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-/** Everything a chapter sets when it opens. */
-function chapterState(id: SiteId, i: number, reducedMotion: boolean): Partial<State> {
+/** How long playback rests on each note's point, in real seconds. */
+export const HOLD = 1.5;
+
+/** The note that owns time t: the last one whose point is at or before it. Notes and time never disagree. */
+export function chapterAt(id: SiteId, t: number) {
+  const chs = PLACES[id].chapters;
+  let k = 0;
+  for (let i = 0; i < chs.length; i++) if (t >= chs[i].t - 1) k = i;
+  return k;
+}
+
+/** What a note sets when it becomes the current one: its map view and camera. Time is set by the caller. */
+function chapterState(id: SiteId, i: number): Partial<State> {
   const ch = PLACES[id].chapters[i];
-  const play = ch.play && !reducedMotion;
   return {
     chapter: i,
-    t: play ? ch.play!.from : ch.play && reducedMotion ? ch.play.to : ch.t,
-    playTo: play ? ch.play!.to : null,
-    playing: !!play,
-    tTarget: null,
     layer: ch.layer,
     rain: ch.fx?.rain ?? ch.layer === "season",
     freeCam: false,
@@ -88,6 +110,10 @@ export const useStore = create<State>((set, get) => ({
   t: PLACES.nepal.chapters[0].t,
   playTo: null,
   playing: false,
+  hold: 0,
+  speed: 0.5,
+  storyOpen: true,
+  panelOpen: true,
   tTarget: null,
   layer: "photo",
   pass: "dusk",
@@ -98,6 +124,7 @@ export const useStore = create<State>((set, get) => ({
   hoverSite: null,
   visited: {},
   sourcesOpen: false,
+  helpOpen: false,
   reducedMotion: reduced,
 
   setSites: (sites) => set({ sites }),
@@ -105,16 +132,22 @@ export const useStore = create<State>((set, get) => ({
   setReady: () => set({ ready: true, progress: 1 }),
   setError: (error) => set({ error }),
   enter: () => set({ phase: "hub", freeCam: false, playing: false }),
-  openSite: (id, chapter) => {
+  // a place always opens on its first note, at the first point of its timeline
+  openSite: (id, chapter = 0) => {
     const s = get();
-    const resume = chapter ?? s.visited[id] ?? 0;
-    set({ phase: "site", siteId: id, hoverSite: null, viewNonce: s.viewNonce + 1, ...chapterState(id, resume, s.reducedMotion), visited: { ...s.visited, [id]: resume } });
+    const ch = PLACES[id].chapters[chapter];
+    set({ phase: "site", siteId: id, hoverSite: null, viewNonce: s.viewNonce + 1, ...chapterState(id, chapter), t: ch.t, tTarget: null, playing: false, playTo: null, hold: 0, visited: { ...s.visited, [id]: Math.max(chapter, s.visited[id] ?? 0) } });
   },
+  // picking a note moves time to its point; if the timeline was playing it plays on from there
   setChapter: (i) => {
     const s = get();
     const n = PLACES[s.siteId].chapters.length;
     const c = clamp(i, 0, n - 1);
-    set({ ...chapterState(s.siteId, c, s.reducedMotion), viewNonce: s.viewNonce + 1, visited: { ...s.visited, [s.siteId]: c } });
+    set({ ...chapterState(s.siteId, c), t: PLACES[s.siteId].chapters[c].t, tTarget: null, hold: 0, viewNonce: s.viewNonce + 1, visited: { ...s.visited, [s.siteId]: Math.max(c, s.visited[s.siteId] ?? 0) } });
+  },
+  reach: (i) => {
+    const s = get();
+    set({ ...chapterState(s.siteId, i), t: PLACES[s.siteId].chapters[i].t, hold: HOLD, visited: { ...s.visited, [s.siteId]: Math.max(i, s.visited[s.siteId] ?? 0) } });
   },
   next: () => {
     const s = get();
@@ -137,22 +170,32 @@ export const useStore = create<State>((set, get) => ({
     s.toHub();
   },
   toHub: () => set({ phase: "hub", playing: false, playTo: null, freeCam: false, viewNonce: get().viewNonce + 1 }),
+  toLanding: () => set({ phase: "intro", playing: false, playTo: null, freeCam: false, hoverSite: null, viewNonce: get().viewNonce + 1 }),
   toFinale: () => set({ phase: "finale", playing: false, playTo: null, freeCam: false, viewNonce: get().viewNonce + 1 }),
+  // scrubbing or jumping: time moves, and the note (and with it the camera) follows
   setTime: (t, smooth = false) => {
-    const tl = PLACES[get().siteId].timeline;
+    const s = get();
+    const tl = PLACES[s.siteId].timeline;
     const c = clamp(t, tl.start, tl.end);
-    if (smooth && !get().reducedMotion) set({ tTarget: c, playing: false, playTo: null });
-    else set({ t: c, tTarget: null, playing: false, playTo: null });
+    const k = chapterAt(s.siteId, c);
+    const note = k !== s.chapter ? { ...chapterState(s.siteId, k), visited: { ...s.visited, [s.siteId]: Math.max(k, s.visited[s.siteId] ?? 0) } } : {};
+    if (smooth && !s.reducedMotion) set({ ...note, tTarget: c, playing: false, playTo: null, hold: 0 });
+    else set({ ...note, t: c, tTarget: null, playing: false, playTo: null, hold: 0 });
   },
+  // play runs to the end of the timeline, resting on every note on the way; at the end it starts over
   setPlaying: (playing) => {
     const s = get();
-    if (!playing) return set({ playing: false });
+    if (!playing) return set({ playing: false, hold: 0 });
     const tl = PLACES[s.siteId].timeline;
-    const ch = PLACES[s.siteId].chapters[s.chapter];
-    // play resumes toward the chapter's goal if there is one ahead, otherwise to the end of the timeline
-    const to = ch.play && s.t < ch.play.to - 1 ? ch.play.to : tl.end;
-    set({ playing: true, tTarget: null, playTo: to, t: s.t >= tl.end - 1 ? tl.start : s.t });
+    if (s.t >= tl.end - 1) {
+      set({ ...chapterState(s.siteId, 0), t: tl.start, tTarget: null, playing: true, playTo: tl.end, hold: 0 });
+      return;
+    }
+    set({ playing: true, tTarget: null, playTo: tl.end, hold: 0 });
   },
+  setSpeed: (speed) => set({ speed }),
+  setStoryOpen: (storyOpen) => set({ storyOpen }),
+  setPanelOpen: (panelOpen) => set({ panelOpen }),
   setLayer: (layer) => set({ layer }),
   setPass: (pass) => set({ pass }),
   setRain: (rain) => set({ rain }),
@@ -161,6 +204,7 @@ export const useStore = create<State>((set, get) => ({
   recenter: () => set({ freeCam: false, viewNonce: get().viewNonce + 1 }),
   setHoverSite: (hoverSite) => set({ hoverSite }),
   setSourcesOpen: (sourcesOpen) => set({ sourcesOpen }),
+  setHelpOpen: (helpOpen) => set({ helpOpen }),
 }));
 
 export const currentChapter = (s: { siteId: SiteId; chapter: number }) => PLACES[s.siteId].chapters[s.chapter];
