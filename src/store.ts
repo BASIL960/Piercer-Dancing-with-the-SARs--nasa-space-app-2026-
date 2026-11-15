@@ -41,6 +41,8 @@ interface State {
   /** the "moving around the map" card */
   helpOpen: boolean;
   reducedMotion: boolean;
+  /** images that failed to load, so the panel can say a layer is incomplete */
+  missing: string[];
 
   setSites(s: Sites): void;
   setProgress(p: number): void;
@@ -126,6 +128,7 @@ export const useStore = create<State>((set, get) => ({
   sourcesOpen: false,
   helpOpen: false,
   reducedMotion: reduced,
+  missing: [],
 
   setSites: (sites) => set({ sites }),
   setProgress: (progress) => set({ progress }),

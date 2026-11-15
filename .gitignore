@@ -26,7 +26,7 @@ Thumbs.db
 node_modules
 dist
 .DS_Store
-# large source material: re-download with `npm run data:fetch`
+# large source material: re-download with `npm run data:research`
 data-src
 pivot-exploration.zip
 # reference material that is not ours to publish

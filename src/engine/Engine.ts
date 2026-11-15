@@ -58,6 +58,7 @@ export class Engine {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.sortObjects = true;
     this.tex = new Textures(Math.min(8, this.renderer.capabilities.getMaxAnisotropy()));
+    this.tex.onFail = (url) => { const m = useStore.getState().missing; if (!m.includes(url)) useStore.setState({ missing: [...m, url] }); };
     this.buildStatic();
     canvas.addEventListener("pointerdown", this.onDown);
     canvas.addEventListener("pointermove", this.onMove);
@@ -253,7 +254,7 @@ export class Engine {
       // resting on a note's point: time waits for the rest, and for the camera to arrive (at most 3 s more)
       if (st.hold > 0) { this.waited = 0; useStore.setState({ hold: Math.max(0, st.hold - dt) }); return; }
       if (this.flight && this.waited < 3) { this.waited += dt; return; }
-      const t = st.t + tl.rate(st.t) * dt * st.speed * (st.reducedMotion ? 4 : 1);
+      const t = st.t + tl.rate(st.t) * dt * st.speed;
       // crossing the next note's point: stop exactly on it, open that note, rest
       const chs = PLACES[st.siteId].chapters;
       const k = chapterAt(st.siteId, st.t) + 1;
@@ -470,16 +471,20 @@ export class Engine {
     const ch = Math.cos(g.heading), sh = Math.sin(g.heading);
     const north = (dx * sh + dy * ch) * perPx;
     const east = (-dx * ch + dy * sh) * perPx;
+    this.moveGoal(north, east);
+  };
+  /** Moves the view target by degrees north and east, staying within reach of the place being read. */
+  private moveGoal(north: number, east: number) {
+    const st = useStore.getState(), g = this.goal;
     g.lat = clamp(g.lat + north, -80, 80);
     g.lon = wrap(g.lon + east / Math.cos(g.lat * DEG));
     if (st.phase === "site") {
-      // stay within reach of the place being read
       const c = this.scenes[st.siteId].center;
       const lim = 1.1;
       g.lat = clamp(g.lat, c[0] - lim, c[0] + lim);
       g.lon = c[1] + clamp(wrap(g.lon - c[1]), -lim * 1.4, lim * 1.4);
     }
-  };
+  }
   private onUp = (e: PointerEvent) => {
     this.pointers.delete(e.pointerId);
     this.drag.pinch = 0;
@@ -504,10 +509,10 @@ export class Engine {
     const g = this.goal, step = (g.dist * R_KM) / 6 / 111;
     if (kind === "in") g.dist = this.clampDist(g.dist / 1.35);
     if (kind === "out") g.dist = this.clampDist(g.dist * 1.35);
-    if (kind === "up") g.lat += step * Math.cos(g.heading);
-    if (kind === "down") g.lat -= step * Math.cos(g.heading);
-    if (kind === "left") g.lon -= step / Math.cos(g.lat * DEG);
-    if (kind === "right") g.lon += step / Math.cos(g.lat * DEG);
+    // up/down move along the view direction and left/right across it, as dragging does, within the same limits
+    const ch = Math.cos(g.heading), sh = Math.sin(g.heading);
+    const fwd = kind === "up" ? step : kind === "down" ? -step : 0, side = kind === "right" ? step : kind === "left" ? -step : 0;
+    if (fwd || side) this.moveGoal(fwd * ch - side * sh, fwd * sh + side * ch);
     if (kind === "rotL") g.heading -= 12 * DEG;
     if (kind === "rotR") g.heading += 12 * DEG;
   }

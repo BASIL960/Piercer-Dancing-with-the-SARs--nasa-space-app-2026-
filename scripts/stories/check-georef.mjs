@@ -13,6 +13,9 @@ const KNOWN = {
   jazan: { Jazan: [42.5511, 16.8892], "Abu Arish": [42.8325, 16.9689], Sabya: [42.6252, 17.1495] },
 };
 
+// Nepal and Oregon rest on a single anchor each, so these gazetteer points are their only independent test:
+// a place more than one context pixel off fails the check (and `npm run data:verify` with it).
+let failed = 0;
 for (const id of Object.keys(SITE_SOURCES)) {
   const d = JSON.parse(fs.readFileSync(path.join(R, SITE_SOURCES[id].dir, "data.json"), "utf8"));
   const g = solve(id, d);
@@ -26,7 +29,9 @@ for (const id of Object.keys(SITE_SOURCES)) {
     let note = "";
     if (k) {
       const dx = (lon - k[0]) * 111320 * Math.cos((lat * Math.PI) / 180), dy = (lat - k[1]) * 110540;
-      note = `   vs gazetteer ${Math.hypot(dx, dy).toFixed(0)} m`;
+      const off = Math.hypot(dx, dy), bad = off > g.res;
+      if (bad) failed++;
+      note = `   vs gazetteer ${off.toFixed(0)} m${bad ? `  FAIL: more than one ${g.res} m pixel` : ""}`;
     }
     console.log(`  ${pl.name.padEnd(34)} ${lat.toFixed(4)}, ${lon.toFixed(4)}${note}`);
   }
@@ -36,3 +41,5 @@ for (const id of Object.keys(SITE_SOURCES)) {
     console.log(`  rain grid ${c.length - 1}x${c[0].length - 1} cells, corner NW ${nwC[1].toFixed(3)}, ${nwC[0].toFixed(3)}  SE ${seC[1].toFixed(3)}, ${seC[0].toFixed(3)}`);
   }
 }
+console.log(failed ? `\nFAIL ${failed} place(s) off by more than a pixel` : "\nok   every gazetteer place within one context pixel");
+process.exit(failed ? 1 : 0);

@@ -39,14 +39,35 @@ export function Overlays() {
       perim: [...el.querySelectorAll<SVGPathElement>("[data-perim]")],
       ign: el.querySelector<SVGGElement>("[data-ignition]"),
     };
-    // a path that lifts the pen wherever a point is behind the camera or over the horizon
+    // A path that lifts the pen wherever a point is behind the camera, over the horizon, or well off screen.
+    // Off-screen runs matter: at close range a tilted view throws the far side of the fire perimeter tens of
+    // thousands of pixels away, and dashing a 300,000 px path every frame cut the frame rate by five-sixths.
+    // The margin keeps edges that cross the screen between two off-screen points (vertices are < 1 km apart).
     const pts = (ll: LatLon[], close = false) => {
-      let s = "", pen = false, all = true;
+      const M = 400, W = innerWidth + M, H = innerHeight + M;
+      // the point where the edge from a (on screen) towards b leaves the margin box
+      const cut = (a: { x: number; y: number }, b: { x: number; y: number }) => {
+        let t = 1;
+        const dx = b.x - a.x, dy = b.y - a.y;
+        if (dx > 0) t = Math.min(t, (W - a.x) / dx); else if (dx < 0) t = Math.min(t, (-M - a.x) / dx);
+        if (dy > 0) t = Math.min(t, (H - a.y) / dy); else if (dy < 0) t = Math.min(t, (-M - a.y) / dy);
+        return `${(a.x + dx * t).toFixed(1)} ${(a.y + dy * t).toFixed(1)}`;
+      };
+      let s = "", pen = false, all = true, prev: { x: number; y: number; on: boolean } | null = null;
       for (const [lat, lon] of ll) {
         const p = engine.project(lat, lon, id);
-        if (!p.front) { pen = false; all = false; continue; }
+        if (!p.front) { pen = false; all = false; prev = null; continue; }
+        const on = p.x > -M && p.x < W && p.y > -M && p.y < H;
+        if (!on) {
+          // finish the edge that leaves the screen, then lift the pen
+          if (pen && prev?.on) s += `L${cut(prev, p)}`;
+          pen = false; all = false; prev = { x: p.x, y: p.y, on };
+          continue;
+        }
+        // start with the edge that enters the screen
+        if (!pen && prev && !prev.on) { s += `M${cut(p, prev)}`; pen = true; }
         s += `${pen ? "L" : "M"}${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
-        pen = true;
+        pen = true; prev = { x: p.x, y: p.y, on };
       }
       return close && all && s ? `${s}Z` : s;
     };

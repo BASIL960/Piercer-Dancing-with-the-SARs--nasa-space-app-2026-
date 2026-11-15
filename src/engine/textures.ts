@@ -9,8 +9,14 @@ export class Textures {
   private loader = new THREE.ImageBitmapLoader();
   private flipLoader = new THREE.ImageBitmapLoader();
   private items = new Map<string, { tex?: THREE.Texture; promise: Promise<THREE.Texture>; used: number; bytes: number; pinned: boolean }>();
+  /** Loads that failed: when they may be tried again, and how many times they have failed. */
+  private failed = new Map<string, { retryAt: number; tries: number; refused: Promise<THREE.Texture> }>();
+  /** Called once per URL that has failed for good (after the last retry), and once on the first failure. */
+  onFail: ((url: string, final: boolean) => void) | null = null;
   readonly blank: THREE.DataTexture;
   frame = 0;
+  /** Retry delays after a failed load; after the last one the URL is given up for this visit. */
+  static readonly RETRY_MS = [5000, 30000];
   constructor(private anisotropy: number, private budgetMB = 640) {
     this.loader.setOptions({ imageOrientation: "none", premultiplyAlpha: "none", colorSpaceConversion: "none" });
     this.flipLoader.setOptions({ imageOrientation: "flipY", premultiplyAlpha: "none", colorSpaceConversion: "none" });
@@ -21,6 +27,9 @@ export class Textures {
   load(url: string, opts: { data?: boolean; pinned?: boolean; flip?: boolean } = {}): Promise<THREE.Texture> {
     let it = this.items.get(url);
     if (!it) {
+      // a failed image is not asked for again on every frame: only after its back-off, and at most twice
+      const f = this.failed.get(url);
+      if (f && (f.tries > Textures.RETRY_MS.length || performance.now() < f.retryAt)) return f.refused;
       const promise = (opts.flip ? this.flipLoader : this.loader).loadAsync(url).then((bmp) => {
         const tex = new THREE.Texture(bmp as unknown as HTMLImageElement);
         tex.flipY = false;
@@ -43,7 +52,19 @@ export class Textures {
       });
       it = { promise, used: this.frame, bytes: 0, pinned: !!opts.pinned };
       this.items.set(url, it);
-      promise.catch(() => this.items.delete(url));
+      promise.catch(() => {
+        this.items.delete(url);
+        const tries = (this.failed.get(url)?.tries ?? 0) + 1;
+        // one settled, already-handled rejection per URL, so callers that ignore the result log nothing
+        const refused = Promise.reject(new Error(`image unavailable: ${url}`)); refused.catch(() => undefined);
+        this.failed.set(url, { tries, refused, retryAt: performance.now() + (Textures.RETRY_MS[tries - 1] ?? Infinity) });
+        const final = tries > Textures.RETRY_MS.length;
+        if (tries === 1 || final) {
+          console.warn(`[piercer] image ${final ? "unavailable, giving up" : "failed, will retry"}: ${url}`);
+          this.onFail?.(url, final);
+        }
+      });
+      promise.then(() => this.failed.delete(url), () => undefined);
     }
     it.used = this.frame;
     return it.promise;

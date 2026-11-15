@@ -166,14 +166,14 @@ Playback slows down on alert days so you can watch the storm move every half hou
 5. **Jazan: the setting.** Map of the coastal plain, the Sarawat mountains and the two radar passes (18:39 / 05:39).
 6. **Jazan: the season in numbers.** Monthly rain bar chart (8 / 34 / 53 / 33 / 37 / 5 mm) with alert markers on the timeline.
 7. **Jazan: the coast greens last.** 16 Sep at 100–250 m → 19 Oct below 100 m; 1,390 km² (981–1,560) newly green, 33% (23–37%) of the plain. Screenshot of the Season view in mid-September.
-8. **Jazan: radar predicted the green.** 69% (50–77%) vs 29% (17–35%).
+8. **Jazan: radar change and later green line up.** 69% (50–77%) of the plain the dawn radar flagged in ≥ 3 of 6 rainy windows was green by November, vs 29% (17–35%) elsewhere. This is a spatial association, not a forecast: the analysis does not order the radar change before green-up (see `CLAIMS.md`).
 9. **Jazan: dusk vs dawn.** 33% (19–53%) vs 9% (4–18%); rain before 5 of 8 dusk passes vs none at dawn. A small two-line chart.
 10. **Jazan: alerts on the map.** Screenshot of the 22 Aug red-alert card plus the 24 Oct Wadi Bid example, with sources.
 11. **Oregon fire:** at least 40% burned in 6 days; 1,810 km² burned, 78% of the 2,330 km² perimeter; radar: hottest-burned shrub signal at 51% of pre-fire vs 81% outside.
 12. **Nepal flood:** 08:37 collapse → Syabrubesi by 09:10; radar pair to 31 Aug: 38% of the flood corridor changed vs 7% of the slopes; a photo only on 1 Oct; 11.7 km² stripped (24% of the corridor); 289 dead (reported).
 13. **Caveats and honesty:** provisional products, Late-run rain, interpolated animation (see the lists above).
 14. **Impact and next steps:**
-    - flood and crop early warning for Jazan farmers and Civil Defense
+    - flood warnings and crop monitoring for Jazan farmers and Civil Defense (a lead-time test for crops is still to be done)
     - rapid damage mapping when clouds block photos
     - re-run with final NISAR and IMERG products
 

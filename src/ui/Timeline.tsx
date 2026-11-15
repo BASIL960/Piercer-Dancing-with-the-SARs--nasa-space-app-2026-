@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type KeyboardEvent as KeyEvent } from "react";
 import { fmtClock, fmtDay, TZ, type SiteId } from "../data";
 import { useStore } from "../store";
 import { PLACES, sliderOf } from "../story";
@@ -42,6 +42,15 @@ export function Timeline() {
   const show = tip ?? null;
   const pos = (v: number) => `${(sl.toS(v) * 100).toFixed(2)}%`;
   const phases = tl.phases.map((p, i) => ({ ...p, e: tl.phases[i + 1]?.s ?? 1 }));
+  // the dated events are one tab stop (the latest event so far); arrow keys move between them, Enter jumps there
+  const roving = Math.max(0, cur);
+  const onEventKey = (e: KeyEvent<HTMLButtonElement>, k: number) => {
+    const to = e.key === "ArrowRight" || e.key === "ArrowDown" ? k + 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? k - 1 : e.key === "Home" ? 0 : e.key === "End" ? events.length - 1 : null;
+    if (to === null) return;
+    e.preventDefault(); e.stopPropagation();
+    const btns = e.currentTarget.parentElement!.querySelectorAll<HTMLButtonElement>(".event");
+    btns[Math.max(0, Math.min(events.length - 1, to))]?.focus();
+  };
 
   return (
     <div className="timeline" role="group" aria-label="Time">
@@ -63,8 +72,8 @@ export function Timeline() {
         <div className="events">
           {events.map((e, k) => (
             <button key={k} className={`event ${e.kind}${k === cur ? " now" : ""}${k <= cur ? " past" : ""}`} style={{ left: pos(e.t), marginLeft: -9 + nudge[k] * 12 }}
-              onClick={() => jump(k)} onPointerEnter={() => setTip(k)} onPointerLeave={() => setTip(null)} onFocus={() => setTip(k)} onBlur={() => setTip(null)}
-              aria-label={`${fmtDay(siteId, e.t)}: ${e.text}`}>
+              onClick={() => jump(k)} onKeyDown={(ev) => onEventKey(ev, k)} tabIndex={k === roving ? 0 : -1} onPointerEnter={() => setTip(k)} onPointerLeave={() => setTip(null)} onFocus={() => setTip(k)} onBlur={() => setTip(null)}
+              aria-label={`Event ${k + 1} of ${events.length}, ${fmtDay(siteId, e.t)}: ${e.text}${k === 0 ? " (arrow keys move between events)" : ""}`}>
               <i />
             </button>
           ))}

@@ -36,9 +36,9 @@ export function Finale() {
       <div className="finale-inner">
         <p className="kicker">The whole season</p>
         <h1>Minutes, weeks, a season</h1>
-        <p className="lede">The ground changed at three speeds in the summer of 2026. Each time, cloud, smoke or storm hid it from cameras, and each time NISAR's radar saw through.</p>
+        <p className="lede">The ground changed at three speeds in the summer of 2026. Each time, cloud, smoke or storm hid it from cameras, and NISAR's radar showed what the photos could not: through the cloud in Nepal, after the smoke in Oregon, through the storms in Jazan.</p>
         <SeasonChart rows={rows} gap={[isoDay("2026-07-27"), isoDay("2026-08-11")]} />
-        <p className="note">Dots: NISAR passes used here. The shaded band: no NISAR data, 27 July – 10 August 2026, at all three places alike (ASF).</p>
+        <p className="note">Dots: NISAR passes used here. The shaded band: 27 July – 10 August 2026, when NISAR returned no data at any of the three places (ASF). Each place's own gap is a little longer; over the fire it ran from 26 July to 12 August.</p>
 
         <div className="findings">
           <article>
@@ -58,8 +58,8 @@ export function Finale() {
             ]} />
           </article>
           <article>
-            <h2><span>{PLACES.jazan.speed}</span> Ahead of the green</h2>
-            <p>Ground the dawn radar kept flagging through the rains was {(x.flagged / x.not).toFixed(1)} times as likely to be green by November.</p>
+            <h2><span>{PLACES.jazan.speed}</span> Where the green came</h2>
+            <p>Ground the dawn radar kept flagging through the rains was {(x.flagged / x.not).toFixed(1)} times as likely to be green by November. That shows where, not when: it is not yet a forecast.</p>
             <CompareBars label="Jazan: share of the plain green by November" rows={[
               { name: "Radar flagged", v: x.flagged, lo: x.flaggedLo, hi: x.flaggedHi, kind: "green" },
               { name: "Rest of the plain", v: x.not, lo: x.notLo, hi: x.notHi, kind: "control" },

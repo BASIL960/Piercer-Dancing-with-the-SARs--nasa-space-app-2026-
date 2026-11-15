@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type KeyboardEvent } from "react";
 import { useStore } from "../store";
 import { EVIDENCE, Tag, type Evidence } from "./bits";
 
@@ -25,10 +25,23 @@ const RULES: [string, string][] = [
 export function Sources() {
   const close = () => useStore.getState().setSourcesOpen(false);
   const box = useRef<HTMLDivElement>(null);
-  useEffect(() => { box.current?.focus(); }, []);
+  // focus moves into the dialog, stays there while it is open, and goes back to what opened it
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    box.current?.focus();
+    return () => { if (opener?.isConnected) opener.focus(); };
+  }, []);
+  const trap = (e: KeyboardEvent) => {
+    if (e.key !== "Tab" || !box.current) return;
+    const f = [...box.current.querySelectorAll<HTMLElement>("a[href], button, [tabindex='0']")].filter((x) => x.offsetParent !== null);
+    if (!f.length) return;
+    const first = f[0], last = f[f.length - 1], at = document.activeElement;
+    if (e.shiftKey && (at === first || at === box.current)) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && at === last) { e.preventDefault(); first.focus(); }
+  };
   return (
     <div className="sheet-back" onClick={close}>
-      <div className="sheet" role="dialog" aria-modal="true" aria-labelledby="sources-title" tabIndex={-1} ref={box} onClick={(e) => e.stopPropagation()}>
+      <div className="sheet" role="dialog" aria-modal="true" aria-labelledby="sources-title" tabIndex={-1} ref={box} onClick={(e) => e.stopPropagation()} onKeyDown={trap}>
         <button className="quiet sheet-close" onClick={close}>Close</button>
         <h2 id="sources-title">Sources and method</h2>
         <p>Piercer draws on the team's research (the <code>research</code> folder of the project repository): one data standard for all three places, with every number listed with its rule, its comparison and its source in <code>research/CLAIMS.md</code>. This site reprojects those results onto the globe; it does not measure anything new.</p>
@@ -54,8 +67,10 @@ export function Sources() {
 
         <h3>Limits</h3>
         <ul>
-          <li>NISAR products are provisional. There is no NISAR data from 27 July to 10 August 2026; the Oregon radar pair across the fire spans 36 days.</li>
+          <li>NISAR products are provisional. There is no NISAR data at any of the three places from 27 July to 10 August 2026; over the Oregon fire the gap runs from 26 July to 12 August, and the radar pair across the fire spans 36 days.</li>
           <li>Coherence loss says that the ground changed, not why.</li>
+          <li>In Jazan, ground the radar flagged often was more likely to be green by November. That is a match in place, not in time: it has not been shown that the radar saw the change before the plants came up.</li>
+          <li>The Oregon burned share on each date comes from a single photo, so it can read low when part of the fire is hidden or the photo differs from the pre-fire blend; only full views are quoted.</li>
           <li>Moving fire and flood fronts, and counters that grow between observations, are estimates for the animation. Their end values are measured.</li>
           <li>Green and water dates are the first clear photo showing the change, so they can be a few days late.</li>
           <li>Deaths, acres, containment and alert texts are reported by the sources named beside them and were not recomputed.</li>
